@@ -35,7 +35,7 @@ local_backend: true
 # UI設定
 # =============================================================================
 locale: ja
-display_url: https://<< your-domain.com >>
+display_url:  https://1804site.pages.dev
 logo_url: /favicon.svg
 
 slug:
@@ -58,64 +58,63 @@ collections:
     slug: "{{slug}}"
 
     sortable_fields:
-      - title
+      - updatedAt
+      - priority
       - price
+      - title
       - status
 
     summary: "{{title}} - ¥{{price}} [{{status}}]"
 
     fields:
-      - { label: "ID", name: "id", widget: "string", hint: "例: prod_001（変更不可）" }
-      - { label: "商品名", name: "title", widget: "string" }
-      - { label: "価格", name: "price", widget: "number", min: 0 }
-      - { label: "ステータス", name: "status", widget: "select", options: ["available", "reserved", "sold"] }
-      - { label: "タグ", name: "tags", widget: "list", required: false }
-      - { label: "商品画像", name: "coverImage", widget: "image", required: false }
-      - { label: "説明", name: "body", widget: "markdown", required: false }
+      - name: id
+        label: ID
+        widget: string
+        pattern: ["^[a-z0-9_]+$", "英小文字・数字・アンダースコアのみ"]
+        hint: "例: prod_001（変更不可）"
+        required: true
 
-      
       - name: title
         label: 商品名
         widget: string
         required: true
-      
-      - name: slug
-        label: URL スラッグ
-        widget: string
-        pattern: ["^[a-z0-9-]+$", "英小文字・数字・ハイフンのみ"]
-        hint: "例: vintage-seiko-watch"
-      
+
+      # slug は「ファイル名から自動生成」運用に寄せます（Astro側と衝突しやすいので）
+      # - name: slug
+      #   label: URL スラッグ
+      #   widget: string
+
       - name: price
         label: 価格（税込）
         widget: number
         value_type: int
         min: 0
         required: true
-      
+
       - name: status
         label: ステータス
         widget: select
         options:
-          - { label: "📝 下書き", value: "draft" }
           - { label: "✅ 販売中", value: "active" }
           - { label: "⏸️ 取り置き中", value: "reserved" }
           - { label: "🏷️ 売却済", value: "sold" }
           - { label: "👁️‍🗨️ 非表示", value: "hidden" }
+          - { label: "📝 下書き", value: "draft" }
         default: draft
         required: true
-      
+
       - name: description
         label: 概要説明
         widget: text
         required: true
         hint: "一覧・詳細のサマリー（200文字以内推奨）"
-      
+
       - name: coverImage
         label: カバー画像
         widget: image
         required: true
         hint: "正方形推奨、1200x1200px以上"
-      
+
       - name: images
         label: 追加画像
         widget: list
@@ -124,20 +123,20 @@ collections:
           name: image
           label: 画像
           widget: image
-      
+
       - name: tags
         label: タグ
         widget: list
         required: false
         hint: "カテゴリ・ブランド名など"
-      
+
       - name: purchaseUrl
         label: 購入ページURL
         widget: string
         required: false
         pattern: ["^https?://.+", "http(s)://で始めてください"]
         hint: "メルカリ、BASE等のURL"
-      
+
       - name: priority
         label: 表示優先度
         widget: number
@@ -146,27 +145,27 @@ collections:
         max: 100
         default: 50
         hint: "0-100、大きいほど上位表示"
-      
+
       - name: publishedAt
         label: 公開日時
         widget: datetime
         date_format: YYYY-MM-DD
         time_format: HH:mm
         required: true
-      
+
       - name: updatedAt
         label: 更新日時
         widget: datetime
         date_format: YYYY-MM-DD
         time_format: HH:mm
         required: true
-      
+
       - name: notes
         label: 非公開メモ
         widget: text
         required: false
         hint: "⚠️ このメモは公開サイトには表示されません。仕入れ情報等を記録できます。"
-      
+
       - name: body
         label: 詳細説明
         widget: markdown
