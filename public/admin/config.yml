@@ -79,6 +79,13 @@ collections:
         widget: string
         required: true
 
+      - name: slug
+        label: URL用ID（半角英数とハイフン）
+        widget: string
+        pattern: ["^[a-z0-9-]+$", "英小文字・数字・ハイフンのみ"]
+        hint: "例: vintage-seiko-watch"
+        required: true
+
       # slug は「ファイル名から自動生成」運用に寄せます（Astro側と衝突しやすいので）
       # - name: slug
       #   label: URL スラッグ
