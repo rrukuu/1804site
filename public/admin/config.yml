@@ -56,19 +56,23 @@ collections:
     extension: md
     format: yaml-frontmatter
     slug: "{{slug}}"
+
     sortable_fields:
-      fields: [updatedAt, priority, price, title]
-      default:
-        field: updatedAt
-        direction: Descending
+      - title
+      - price
+      - status
+
     summary: "{{title}} - ¥{{price}} [{{status}}]"
-    
+
     fields:
-      - name: id
-        label: ID
-        widget: string
-        pattern: ["^[a-z0-9_]+$", "英小文字・数字・アンダースコアのみ"]
-        hint: "例: prod_001（変更不可）"
+      - { label: "ID", name: "id", widget: "string", hint: "例: prod_001（変更不可）" }
+      - { label: "商品名", name: "title", widget: "string" }
+      - { label: "価格", name: "price", widget: "number", min: 0 }
+      - { label: "ステータス", name: "status", widget: "select", options: ["available", "reserved", "sold"] }
+      - { label: "タグ", name: "tags", widget: "list", required: false }
+      - { label: "商品画像", name: "coverImage", widget: "image", required: false }
+      - { label: "説明", name: "body", widget: "markdown", required: false }
+
       
       - name: title
         label: 商品名
