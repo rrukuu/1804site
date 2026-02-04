@@ -7,9 +7,9 @@
 # オプション1: GitHub OAuth（推奨）
 backend:
   name: github
-  repo: << owner/repo >>
+  repo: rrukuu/1804site
   branch: main
-  base_url: https://<< your-domain.com >>
+  base_url: https://1804site.pages.dev
   auth_endpoint: /api/auth
 
 # オプション2: Netlify Identity + Git Gateway（代替案）
@@ -24,8 +24,7 @@ media_folder: public/images/products
 public_folder: /images/products
 
 media_library:
-  max_file_size: 5120000
-  folder_support: true
+  name: uploadcare
 
 # =============================================================================
 # ローカル開発用
