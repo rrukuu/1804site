@@ -12,7 +12,7 @@ const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
 
 // 認証開始（/api/auth にアクセスした場合）
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestGet = async (context: any) => {
   const url = new URL(context.request.url);
   
   // コールバックの場合
@@ -40,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 // コールバック処理
-async function handleCallback(context: EventContext<Env, any, any>): Promise<Response> {
+async function handleCallback(context: any): Promise<Response> {
   const url = new URL(context.request.url);
   const code = url.searchParams.get('code');
   const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = context.env;
@@ -138,6 +138,6 @@ async function handleCallback(context: EventContext<Env, any, any>): Promise<Res
 }
 
 // POSTリクエストのハンドリング（Decap CMSの一部バージョンで必要）
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost = async (context: any) => {
   return onRequestGet(context);
 };
