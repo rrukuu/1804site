@@ -1,0 +1,46 @@
+---
+// src/components/ProductGrid.astro
+import type { Product } from '../lib/products';
+import ProductCard from './ProductCard.astro';
+
+interface Props {
+  products: Product[];
+}
+
+const { products } = Astro.props;
+---
+
+{products.length === 0 ? (
+  <div class="empty-state">
+    <p>該当する商品がありません</p>
+  </div>
+) : (
+  <div class="product-grid">
+    {products.map((product) => (
+      <ProductCard product={product} />
+    ))}
+  </div>
+)}
+
+<style>
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .product-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border-radius: var(--radius);
+  }
+</style>

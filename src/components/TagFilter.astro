@@ -1,0 +1,66 @@
+---
+// src/components/TagFilter.astro
+interface Props {
+  tags: { tag: string; count: number }[];
+  activeTag?: string;
+}
+
+const { tags, activeTag } = Astro.props;
+---
+
+<nav class="tag-filter" aria-label="タグでフィルター">
+  <a 
+    href="/" 
+    class:list={['filter-item', { active: !activeTag }]}
+  >
+    すべて
+  </a>
+  {tags.map(({ tag, count }) => (
+    <a 
+      href={`/?tag=${encodeURIComponent(tag)}`}
+      class:list={['filter-item', { active: activeTag === tag }]}
+    >
+      {tag}
+      <span class="count">({count})</span>
+    </a>
+  ))}
+</nav>
+
+<style>
+  .tag-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 0;
+  }
+
+  .filter-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    transition: all 0.2s;
+  }
+
+  .filter-item:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .filter-item.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+
+  .count {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+</style>

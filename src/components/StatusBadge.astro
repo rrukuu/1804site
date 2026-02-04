@@ -1,0 +1,61 @@
+---
+// src/components/StatusBadge.astro
+import type { ProductStatus } from '../content/config';
+import { getStatusLabel } from '../lib/products';
+
+interface Props {
+  status: ProductStatus;
+  size?: 'sm' | 'md';
+}
+
+const { status, size = 'md' } = Astro.props;
+const label = getStatusLabel(status);
+---
+
+<span class:list={['status-badge', `status-${status}`, `size-${size}`]}>
+  {label}
+</span>
+
+<style>
+  .status-badge {
+    display: inline-block;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 9999px;
+  }
+
+  .size-sm {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.625rem;
+  }
+
+  .size-md {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .status-active {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  .status-reserved {
+    background: #fef9c3;
+    color: #a16207;
+  }
+
+  .status-sold {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .status-draft {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+
+  .status-hidden {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+</style>

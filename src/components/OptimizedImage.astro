@@ -1,0 +1,53 @@
+---
+// src/components/OptimizedImage.astro
+// 画像最適化コンポーネント
+// 外部画像（CMS経由）とローカル画像の両方に対応
+
+interface Props {
+  src: string;
+  alt: string;
+  width?: number;
+  height?: number;
+  class?: string;
+  loading?: 'lazy' | 'eager';
+  sizes?: string;
+}
+
+const { 
+  src, 
+  alt, 
+  width, 
+  height, 
+  class: className,
+  loading = 'lazy',
+  sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'
+} = Astro.props;
+
+// パスがpublic/からの相対パスかどうかを判定
+const isLocalImage = src.startsWith('/');
+
+// srcsetを生成（レスポンシブ対応）
+const widths = [320, 640, 960, 1280, 1920];
+const generateSrcSet = (baseSrc: string) => {
+  // 静的サイトではビルド時にsrcsetを生成できないため、
+  // シンプルに元の画像を返す
+  return baseSrc;
+};
+---
+
+<img 
+  src={src}
+  alt={alt}
+  width={width}
+  height={height}
+  loading={loading}
+  decoding="async"
+  class={className}
+/>
+
+<style>
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+</style>

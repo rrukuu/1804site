@@ -1,0 +1,34 @@
+---
+// src/pages/404.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="ページが見つかりません">
+  <div class="container">
+    <div class="error-page">
+      <h1>404</h1>
+      <p>お探しのページは見つかりませんでした</p>
+      <a href="/" class="btn btn-primary">トップページへ戻る</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .error-page {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .error-page h1 {
+    font-size: 6rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    line-height: 1;
+  }
+
+  .error-page p {
+    font-size: 1.25rem;
+    color: var(--color-text-muted);
+    margin: 1rem 0 2rem;
+  }
+</style>

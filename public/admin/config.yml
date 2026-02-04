@@ -1,0 +1,171 @@
+# Decap CMS Configuration
+# 詳細: https://decapcms.org/docs/configuration-options/
+
+# =============================================================================
+# バックエンド設定
+# =============================================================================
+# オプション1: GitHub OAuth（推奨）
+backend:
+  name: github
+  repo: << owner/repo >>
+  branch: main
+  base_url: https://<< your-domain.com >>
+  auth_endpoint: /api/auth
+
+# オプション2: Netlify Identity + Git Gateway（代替案）
+# backend:
+#   name: git-gateway
+#   branch: main
+
+# =============================================================================
+# メディア設定
+# =============================================================================
+media_folder: public/images/products
+public_folder: /images/products
+
+media_library:
+  max_file_size: 5120000
+  folder_support: true
+
+# =============================================================================
+# ローカル開発用
+# =============================================================================
+local_backend: true
+
+# =============================================================================
+# UI設定
+# =============================================================================
+locale: ja
+display_url: https://<< your-domain.com >>
+logo_url: /favicon.svg
+
+slug:
+  encoding: ascii
+  clean_accents: true
+  sanitize_replacement: "-"
+
+# =============================================================================
+# コレクション定義
+# =============================================================================
+collections:
+  - name: products
+    label: 商品
+    label_singular: 商品
+    folder: src/content/products
+    create: true
+    delete: true
+    extension: md
+    format: yaml-frontmatter
+    slug: "{{slug}}"
+    sortable_fields:
+      fields: [updatedAt, priority, price, title]
+      default:
+        field: updatedAt
+        direction: Descending
+    summary: "{{title}} - ¥{{price}} [{{status}}]"
+    
+    fields:
+      - name: id
+        label: ID
+        widget: string
+        pattern: ["^[a-z0-9_]+$", "英小文字・数字・アンダースコアのみ"]
+        hint: "例: prod_001（変更不可）"
+      
+      - name: title
+        label: 商品名
+        widget: string
+        required: true
+      
+      - name: slug
+        label: URL スラッグ
+        widget: string
+        pattern: ["^[a-z0-9-]+$", "英小文字・数字・ハイフンのみ"]
+        hint: "例: vintage-seiko-watch"
+      
+      - name: price
+        label: 価格（税込）
+        widget: number
+        value_type: int
+        min: 0
+        required: true
+      
+      - name: status
+        label: ステータス
+        widget: select
+        options:
+          - { label: "📝 下書き", value: "draft" }
+          - { label: "✅ 販売中", value: "active" }
+          - { label: "⏸️ 取り置き中", value: "reserved" }
+          - { label: "🏷️ 売却済", value: "sold" }
+          - { label: "👁️‍🗨️ 非表示", value: "hidden" }
+        default: draft
+        required: true
+      
+      - name: description
+        label: 概要説明
+        widget: text
+        required: true
+        hint: "一覧・詳細のサマリー（200文字以内推奨）"
+      
+      - name: coverImage
+        label: カバー画像
+        widget: image
+        required: true
+        hint: "正方形推奨、1200x1200px以上"
+      
+      - name: images
+        label: 追加画像
+        widget: list
+        required: false
+        field:
+          name: image
+          label: 画像
+          widget: image
+      
+      - name: tags
+        label: タグ
+        widget: list
+        required: false
+        hint: "カテゴリ・ブランド名など"
+      
+      - name: purchaseUrl
+        label: 購入ページURL
+        widget: string
+        required: false
+        pattern: ["^https?://.+", "http(s)://で始めてください"]
+        hint: "メルカリ、BASE等のURL"
+      
+      - name: priority
+        label: 表示優先度
+        widget: number
+        value_type: int
+        min: 0
+        max: 100
+        default: 50
+        hint: "0-100、大きいほど上位表示"
+      
+      - name: publishedAt
+        label: 公開日時
+        widget: datetime
+        date_format: YYYY-MM-DD
+        time_format: HH:mm
+        required: true
+      
+      - name: updatedAt
+        label: 更新日時
+        widget: datetime
+        date_format: YYYY-MM-DD
+        time_format: HH:mm
+        required: true
+      
+      - name: notes
+        label: 非公開メモ
+        widget: text
+        required: false
+        hint: "⚠️ このメモは公開サイトには表示されません。仕入れ情報等を記録できます。"
+      
+      - name: body
+        label: 詳細説明
+        widget: markdown
+        required: false
+        hint: "商品の詳細説明（Markdown形式）"
