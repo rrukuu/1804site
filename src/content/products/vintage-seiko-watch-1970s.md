@@ -1,20 +1,20 @@
 ---
-id: "prod_001"
-title: "ヴィンテージ腕時計 SEIKO 1970年代"
-slug: "vintage-seiko-watch-1970s"
+id: prod_001
+title: ルシファー運極
+slug: vintage-seiko-watch-1970s
 price: 45000
-status: "active"
-description: "1970年代のSEIKO自動巻き腕時計。文字盤の経年変化が美しい一品です。オーバーホール済みで実用可能。"
-coverImage: "/images/products/prod_001/cover.jpg"
+status: active
+description: main
+coverImage: /images/products/prod_001/cover.jpg
 images:
-  - "/images/products/prod_001/01.jpg"
-  - "/images/products/prod_001/02.jpg"
-  - "/images/products/prod_001/03.jpg"
+  - /images/products/prod_001/01.jpg
+  - /images/products/prod_001/02.jpg
+  - /images/products/prod_001/03.jpg
 tags:
-  - "腕時計"
-  - "ヴィンテージ"
-  - "SEIKO"
-purchaseUrl: "https://mercari.com/sample-001"
+  - 腕時計
+  - ヴィンテージ
+  - SEIKO
+purchaseUrl: https://mercari.com/sample-001
 priority: 80
 publishedAt: 2024-01-10T10:00:00+09:00
 updatedAt: 2024-01-25T14:30:00+09:00
