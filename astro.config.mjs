@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://http://localhost:4321',
+  site: 'https://1804site.pages.dev',
   output: 'static',
   build: {
     assets: '_assets',
