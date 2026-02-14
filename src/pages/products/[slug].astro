@@ -2,7 +2,7 @@
 // src/pages/products/[slug].astro
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
-import { getVisibleProducts, getProductBySlug, shouldShowPurchaseUrl, sanitizeForPublic } from '../../lib/products';
+import { getVisibleProducts, getProductBySlug, shouldShowPurchaseUrl, sanitizeForPublic, getCategoryLabel } from '../../lib/products';
 
 // 静的パス生成
 export async function getStaticPaths() {
@@ -68,6 +68,9 @@ const { Content } = await product.render();
             <h1>{publicData.title}</h1>
             <p class="price">¥{publicData.price.toLocaleString()}</p>
           </header>
+
+          <p class="category">カテゴリ: {getCategoryLabel(publicData.category)}</p>
+          {typeof publicData.orbCount === 'number' && <p class="orb-count">オーブ数: {publicData.orbCount.toLocaleString()}個</p>}
 
           <!-- タグ -->
           {publicData.tags.length > 0 && (
@@ -240,6 +243,13 @@ const { Content } = await product.render();
     font-weight: 700;
     color: var(--color-text);
     margin: 0;
+  }
+
+  .category,
+  .orb-count {
+    margin: 0 0 0.75rem;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
   }
 
   .tags {

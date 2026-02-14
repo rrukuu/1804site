@@ -1,64 +1,245 @@
 ---
-// src/pages/index.astro
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ProductGrid from '../components/ProductGrid.astro';
-import TagFilter from '../components/TagFilter.astro';
-import { getVisibleProducts, getProductsByTag, getAllTags } from '../lib/products';
+import {
+  PRODUCT_CATEGORIES,
+  type ProductQuery,
+  getFilteredProducts,
+  getTagsByCategory,
+} from '../lib/products';
 
-// クエリパラメータからタグを取得
-const url = new URL(Astro.request.url);
-const activeTag = url.searchParams.get('tag') || undefined;
+const products = await getFilteredProducts({ sort: 'newest' });
+const tags = await getTagsByCategory();
 
-// 商品とタグを取得
-const allTags = await getAllTags();
-const products = activeTag 
-  ? await getProductsByTag(activeTag)
-  : await getVisibleProducts();
+const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
+  { value: 'newest', label: '新規出品順' },
+  { value: 'price-high', label: '価格が高い順' },
+  { value: 'price-low', label: '価格が安い順' },
+  { value: 'orb-high', label: 'オーブが多い順' },
+  { value: 'orb-low', label: 'オーブが少ない順' },
+];
 ---
 
-<BaseLayout title="Home" description="商品一覧">
-  <div class="container">
+<BaseLayout title="モンスト商品一覧" description="オーブアカウント・代行・強垢をカテゴリで探せます">
+  <div class="container" id="marketplace-root">
     <section class="hero">
-      <h1>商品一覧</h1>
-      <p>販売中の商品をご覧いただけます</p>
+      <h1>モンスト販売マーケット</h1>
+      <p>アカウント販売（オーブアカウント）・代行・強垢販売をカテゴリごとに絞り込みできます</p>
     </section>
 
-    <!-- タグフィルター -->
-    {allTags.length > 0 && (
-      <section class="filters">
-        <TagFilter tags={allTags} activeTag={activeTag} />
-      </section>
-    )}
+    <section class="category-tabs" aria-label="カテゴリ選択">
+      <button type="button" class="tab active" data-category="">すべて</button>
+      {PRODUCT_CATEGORIES.map((category) => (
+        <button type="button" class="tab" data-category={category.key}>{category.label}</button>
+      ))}
+    </section>
 
-    <!-- 商品グリッド -->
-    <section class="products">
+    <section class="filters-panel">
+      <form class="filters-form" id="filters-form">
+        <label>
+          並び順
+          <select name="sort" id="sort-select">
+            {sortOptions.map((option) => (
+              <option value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          オーブ数（下限）
+          <input type="number" name="orbMin" id="orb-min" min="0" placeholder="例: 300" />
+        </label>
+
+        <label>
+          オーブ数（上限）
+          <input type="number" name="orbMax" id="orb-max" min="0" placeholder="例: 2000" />
+        </label>
+
+        <button class="btn btn-primary" type="submit">絞り込む</button>
+      </form>
+
+      {tags.length > 0 && (
+        <nav class="tag-filter" aria-label="サブカテゴリ" id="tag-filter">
+          <button type="button" class="tag-item active" data-tag="">すべて</button>
+          {tags.map(({ tag, count }) => (
+            <button type="button" class="tag-item" data-tag={tag}>
+              {tag} <span>({count})</span>
+            </button>
+          ))}
+        </nav>
+      )}
+    </section>
+
+    <section class="products" id="products-section">
       <ProductGrid products={products} />
+      <div class="empty-state-client" id="empty-state-client" hidden>
+        <p>該当する商品がありません</p>
+      </div>
     </section>
   </div>
 </BaseLayout>
 
 <style>
-  .hero {
-    text-align: center;
-    padding: 2rem 0 3rem;
-  }
+  .hero { text-align: center; padding: 2rem 0; }
+  .hero p { color: var(--color-text-muted); }
 
-  .hero h1 {
-    font-size: 2rem;
-    margin: 0 0 0.5rem;
-  }
+  .category-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
 
-  .hero p {
+  .tab {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-card);
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
     color: var(--color-text-muted);
-    margin: 0;
+    cursor: pointer;
   }
 
-  .filters {
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--color-border);
+  .tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+  .filters-panel { border: 1px solid var(--color-border); background: var(--color-bg-card); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+
+  .filters-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; align-items: end; }
+  .filters-form label { display: grid; gap: 0.25rem; font-size: 0.875rem; }
+
+  .filters-form input,
+  .filters-form select { width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: calc(var(--radius) / 2); background: var(--color-bg); color: var(--color-text); }
+
+  .tag-filter { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+
+  .tag-item {
+    font-size: 0.8125rem;
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    background: var(--color-bg-card);
   }
 
-  .products {
-    padding: 1rem 0 3rem;
+  .tag-item.active { border-color: var(--color-primary); color: var(--color-primary); }
+
+  .products { padding-bottom: 3rem; }
+
+  .empty-state-client {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border-radius: var(--radius);
   }
 </style>
+
+<script is:inline>
+  const root = document.getElementById('marketplace-root');
+
+  if (root) {
+    const statusPriority = { active: 0, reserved: 1, sold: 2, draft: 3, hidden: 4 };
+    const productGrid = root.querySelector('.product-grid');
+    const cards = Array.from(root.querySelectorAll('.product-card'));
+    const categoryButtons = Array.from(root.querySelectorAll('.tab'));
+    const tagButtons = Array.from(root.querySelectorAll('.tag-item'));
+    const sortSelect = root.querySelector('#sort-select');
+    const orbMinInput = root.querySelector('#orb-min');
+    const orbMaxInput = root.querySelector('#orb-max');
+    const filtersForm = root.querySelector('#filters-form');
+    const emptyState = root.querySelector('#empty-state-client');
+
+    if (productGrid && sortSelect && orbMinInput && orbMaxInput && filtersForm && emptyState) {
+      const state = { category: '', tag: '', sort: 'newest', orbMin: '', orbMax: '' };
+
+    const readFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      state.category = params.get('category') || '';
+      state.tag = params.get('tag') || '';
+      const sort = params.get('sort') || 'newest';
+      state.sort = ['newest', 'price-high', 'price-low', 'orb-high', 'orb-low'].includes(sort) ? sort : 'newest';
+      state.orbMin = params.get('orbMin') || '';
+      state.orbMax = params.get('orbMax') || '';
+    };
+
+    const writeUrl = () => {
+      const params = new URLSearchParams();
+      if (state.category) params.set('category', state.category);
+      if (state.tag) params.set('tag', state.tag);
+      if (state.sort !== 'newest') params.set('sort', state.sort);
+      if (state.orbMin) params.set('orbMin', state.orbMin);
+      if (state.orbMax) params.set('orbMax', state.orbMax);
+      const query = params.toString();
+      window.history.replaceState({}, '', query ? `/?${query}` : '/');
+    };
+
+    const syncControls = () => {
+      categoryButtons.forEach((button) => button.classList.toggle('active', button.dataset.category === state.category));
+      tagButtons.forEach((button) => button.classList.toggle('active', button.dataset.tag === state.tag));
+      sortSelect.value = state.sort;
+      orbMinInput.value = state.orbMin;
+      orbMaxInput.value = state.orbMax;
+    };
+
+    const compareCards = (a, b) => {
+      const aStatus = a.dataset.status || 'hidden';
+      const bStatus = b.dataset.status || 'hidden';
+      const statusDiff = (statusPriority[aStatus] ?? 99) - (statusPriority[bStatus] ?? 99);
+      if (statusDiff !== 0) return statusDiff;
+      if (state.sort === 'price-high') return Number(b.dataset.price) - Number(a.dataset.price);
+      if (state.sort === 'price-low') return Number(a.dataset.price) - Number(b.dataset.price);
+      if (state.sort === 'orb-high') return Number(b.dataset.orbCount) - Number(a.dataset.orbCount);
+      if (state.sort === 'orb-low') return Number(a.dataset.orbCount) - Number(b.dataset.orbCount);
+      return Number(b.dataset.updatedAt) - Number(a.dataset.updatedAt);
+    };
+
+    const applyFilters = () => {
+      const orbMin = state.orbMin === '' ? null : Number(state.orbMin);
+      const orbMax = state.orbMax === '' ? null : Number(state.orbMax);
+
+      const visibleCards = cards.filter((card) => {
+        const categoryOk = !state.category || card.dataset.category === state.category;
+        const tags = (card.dataset.tags || '').split(',').filter(Boolean);
+        const tagOk = !state.tag || tags.includes(state.tag);
+        const orbCount = Number(card.dataset.orbCount || 0);
+        const orbMinOk = orbMin === null || orbCount >= orbMin;
+        const orbMaxOk = orbMax === null || orbCount <= orbMax;
+        return categoryOk && tagOk && orbMinOk && orbMaxOk;
+      });
+
+      cards.sort(compareCards).forEach((card) => {
+        card.style.display = visibleCards.includes(card) ? '' : 'none';
+        productGrid.appendChild(card);
+      });
+
+      emptyState.hidden = visibleCards.length > 0;
+      writeUrl();
+    };
+
+    categoryButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        state.category = button.dataset.category || '';
+        state.tag = '';
+        syncControls();
+        applyFilters();
+      });
+    });
+
+    tagButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        state.tag = button.dataset.tag || '';
+        syncControls();
+        applyFilters();
+      });
+    });
+
+    filtersForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      state.sort = sortSelect.value;
+      state.orbMin = orbMinInput.value.trim();
+      state.orbMax = orbMaxInput.value.trim();
+      syncControls();
+      applyFilters();
+    });
+
+      readFromUrl();
+      syncControls();
+      applyFilters();
+    }
+  }
+</script>
