@@ -1,8 +1,16 @@
 // src/lib/products.ts
 import { getCollection, type CollectionEntry } from 'astro:content';
-import type { ProductStatus } from '../content/config';
+import type { ProductCategory, ProductStatus } from '../content/config';
 
 export type Product = CollectionEntry<'products'>;
+
+export interface ProductQuery {
+  category?: ProductCategory;
+  tag?: string;
+  orbMin?: number;
+  orbMax?: number;
+  sort?: 'newest' | 'price-high' | 'price-low' | 'orb-high' | 'orb-low';
+}
 
 /**
  * 公開可能なステータス（一覧・詳細に表示するもの）
@@ -20,85 +28,76 @@ const STATUS_PRIORITY: Record<ProductStatus, number> = {
   hidden: 4,
 };
 
-/**
- * 商品を並び替える
- * 1. active優先
- * 2. priority降順
- * 3. updatedAt降順
- */
-function sortProducts(products: Product[]): Product[] {
+export const PRODUCT_CATEGORIES: { key: ProductCategory; label: string }[] = [
+  { key: 'orb-account', label: 'アカウント販売（オーブアカウント）' },
+  { key: 'boosting', label: '代行' },
+  { key: 'strong-account', label: '強垢販売' },
+];
+
+export function getCategoryLabel(category: ProductCategory): string {
+  return PRODUCT_CATEGORIES.find((item) => item.key === category)?.label ?? category;
+}
+
+function sortProducts(products: Product[], sort: ProductQuery['sort'] = 'newest'): Product[] {
   return products.sort((a, b) => {
-    // ステータス優先度で比較
     const statusDiff = STATUS_PRIORITY[a.data.status] - STATUS_PRIORITY[b.data.status];
     if (statusDiff !== 0) return statusDiff;
 
-    // priority降順
-    const priorityDiff = b.data.priority - a.data.priority;
-    if (priorityDiff !== 0) return priorityDiff;
+    if (sort === 'price-high') return b.data.price - a.data.price;
+    if (sort === 'price-low') return a.data.price - b.data.price;
+    if (sort === 'orb-high') return (b.data.orbCount ?? 0) - (a.data.orbCount ?? 0);
+    if (sort === 'orb-low') return (a.data.orbCount ?? 0) - (b.data.orbCount ?? 0);
 
-    // updatedAt降順
     return b.data.updatedAt.getTime() - a.data.updatedAt.getTime();
   });
 }
 
-/**
- * 公開用の商品一覧を取得（draft/hidden除外、並び替え済み）
- */
 export async function getVisibleProducts(): Promise<Product[]> {
   const allProducts = await getCollection('products');
-  const visibleProducts = allProducts.filter(
-    (product) => VISIBLE_STATUSES.includes(product.data.status)
-  );
-  return sortProducts(visibleProducts);
+  return allProducts.filter((product) => VISIBLE_STATUSES.includes(product.data.status));
 }
 
-/**
- * 全商品を取得（管理用、並び替え済み）
- */
+export async function getFilteredProducts(query: ProductQuery = {}): Promise<Product[]> {
+  const visibleProducts = await getVisibleProducts();
+
+  const filtered = visibleProducts.filter((product) => {
+    if (query.category && product.data.category !== query.category) return false;
+    if (query.tag && !product.data.tags.includes(query.tag)) return false;
+    if (typeof query.orbMin === 'number' && (product.data.orbCount ?? 0) < query.orbMin) return false;
+    if (typeof query.orbMax === 'number' && (product.data.orbCount ?? 0) > query.orbMax) return false;
+    return true;
+  });
+
+  return sortProducts(filtered, query.sort);
+}
+
 export async function getAllProducts(): Promise<Product[]> {
   const allProducts = await getCollection('products');
   return sortProducts(allProducts);
 }
 
-/**
- * slugから商品を取得
- */
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
   const allProducts = await getCollection('products');
   return allProducts.find((product) => product.slug === slug);
 }
 
-/**
- * タグでフィルタした商品を取得
- */
-export async function getProductsByTag(tag: string): Promise<Product[]> {
-  const visibleProducts = await getVisibleProducts();
-  return visibleProducts.filter((product) => 
-    product.data.tags.includes(tag)
-  );
-}
-
-/**
- * 全タグを取得（使用頻度順）
- */
-export async function getAllTags(): Promise<{ tag: string; count: number }[]> {
+export async function getTagsByCategory(category?: ProductCategory): Promise<{ tag: string; count: number }[]> {
   const visibleProducts = await getVisibleProducts();
   const tagCounts = new Map<string, number>();
 
-  visibleProducts.forEach((product) => {
-    product.data.tags.forEach((tag) => {
-      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  visibleProducts
+    .filter((product) => (category ? product.data.category === category : true))
+    .forEach((product) => {
+      product.data.tags.forEach((tag) => {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      });
     });
-  });
 
   return Array.from(tagCounts.entries())
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count);
 }
 
-/**
- * ステータスのラベルを取得
- */
 export function getStatusLabel(status: ProductStatus): string {
   const labels: Record<ProductStatus, string> = {
     draft: '下書き',
@@ -110,16 +109,10 @@ export function getStatusLabel(status: ProductStatus): string {
   return labels[status];
 }
 
-/**
- * 購入URLを表示すべきか判定
- */
 export function shouldShowPurchaseUrl(status: ProductStatus): boolean {
   return status === 'active';
 }
 
-/**
- * notesフィールドを除外した商品データを返す（公開用）
- */
 export function sanitizeForPublic(product: Product): Omit<Product['data'], 'notes'> & { notes?: never } {
   const { notes, ...publicData } = product.data;
   return publicData;
