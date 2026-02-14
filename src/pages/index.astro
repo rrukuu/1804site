@@ -59,7 +59,7 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
       </form>
 
       {tags.length > 0 && (
-        <nav class="tag-filter" aria-label="サブカテゴリ" id="tag-filter">
+        <nav class="tag-filter" aria-label="サブカテゴリ">
           <button type="button" class="tag-item active" data-tag="">すべて</button>
           {tags.map(({ tag, count }) => (
             <button type="button" class="tag-item" data-tag={tag}>
@@ -70,7 +70,7 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
       )}
     </section>
 
-    <section class="products" id="products-section">
+    <section class="products">
       <ProductGrid products={products} />
       <div class="empty-state-client" id="empty-state-client" hidden>
         <p>該当する商品がありません</p>
@@ -80,10 +80,21 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
 </BaseLayout>
 
 <style>
-  .hero { text-align: center; padding: 2rem 0; }
-  .hero p { color: var(--color-text-muted); }
+  .hero {
+    text-align: center;
+    padding: 2rem 0;
+  }
 
-  .category-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .hero p {
+    color: var(--color-text-muted);
+  }
+
+  .category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
 
   .tab {
     border: 1px solid var(--color-border);
@@ -94,17 +105,49 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
     cursor: pointer;
   }
 
-  .tab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+  .tab.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
 
-  .filters-panel { border: 1px solid var(--color-border); background: var(--color-bg-card); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+  .filters-panel {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
 
-  .filters-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; align-items: end; }
-  .filters-form label { display: grid; gap: 0.25rem; font-size: 0.875rem; }
+  .filters-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+  }
+
+  .filters-form label {
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+  }
 
   .filters-form input,
-  .filters-form select { width: 100%; padding: 0.5rem; border: 1px solid var(--color-border); border-radius: calc(var(--radius) / 2); background: var(--color-bg); color: var(--color-text); }
+  .filters-form select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius) / 2);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
 
-  .tag-filter { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+  .tag-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
 
   .tag-item {
     font-size: 0.8125rem;
@@ -116,9 +159,14 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
     background: var(--color-bg-card);
   }
 
-  .tag-item.active { border-color: var(--color-primary); color: var(--color-primary); }
+  .tag-item.active {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 
-  .products { padding-bottom: 3rem; }
+  .products {
+    padding-bottom: 3rem;
+  }
 
   .empty-state-client {
     text-align: center;
@@ -147,95 +195,101 @@ const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
     if (productGrid && sortSelect && orbMinInput && orbMaxInput && filtersForm && emptyState) {
       const state = { category: '', tag: '', sort: 'newest', orbMin: '', orbMax: '' };
 
-    const readFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      state.category = params.get('category') || '';
-      state.tag = params.get('tag') || '';
-      const sort = params.get('sort') || 'newest';
-      state.sort = ['newest', 'price-high', 'price-low', 'orb-high', 'orb-low'].includes(sort) ? sort : 'newest';
-      state.orbMin = params.get('orbMin') || '';
-      state.orbMax = params.get('orbMax') || '';
-    };
+      const readFromUrl = () => {
+        const params = new URLSearchParams(window.location.search);
+        state.category = params.get('category') || '';
+        state.tag = params.get('tag') || '';
+        const sort = params.get('sort') || 'newest';
+        state.sort = ['newest', 'price-high', 'price-low', 'orb-high', 'orb-low'].includes(sort)
+          ? sort
+          : 'newest';
+        state.orbMin = params.get('orbMin') || '';
+        state.orbMax = params.get('orbMax') || '';
+      };
 
-    const writeUrl = () => {
-      const params = new URLSearchParams();
-      if (state.category) params.set('category', state.category);
-      if (state.tag) params.set('tag', state.tag);
-      if (state.sort !== 'newest') params.set('sort', state.sort);
-      if (state.orbMin) params.set('orbMin', state.orbMin);
-      if (state.orbMax) params.set('orbMax', state.orbMax);
-      const query = params.toString();
-      window.history.replaceState({}, '', query ? `/?${query}` : '/');
-    };
+      const writeUrl = () => {
+        const params = new URLSearchParams();
+        if (state.category) params.set('category', state.category);
+        if (state.tag) params.set('tag', state.tag);
+        if (state.sort !== 'newest') params.set('sort', state.sort);
+        if (state.orbMin) params.set('orbMin', state.orbMin);
+        if (state.orbMax) params.set('orbMax', state.orbMax);
+        const query = params.toString();
+        window.history.replaceState({}, '', query ? `/?${query}` : '/');
+      };
 
-    const syncControls = () => {
-      categoryButtons.forEach((button) => button.classList.toggle('active', button.dataset.category === state.category));
-      tagButtons.forEach((button) => button.classList.toggle('active', button.dataset.tag === state.tag));
-      sortSelect.value = state.sort;
-      orbMinInput.value = state.orbMin;
-      orbMaxInput.value = state.orbMax;
-    };
+      const syncControls = () => {
+        categoryButtons.forEach((button) => {
+          button.classList.toggle('active', button.dataset.category === state.category);
+        });
+        tagButtons.forEach((button) => {
+          button.classList.toggle('active', button.dataset.tag === state.tag);
+        });
+        sortSelect.value = state.sort;
+        orbMinInput.value = state.orbMin;
+        orbMaxInput.value = state.orbMax;
+      };
 
-    const compareCards = (a, b) => {
-      const aStatus = a.dataset.status || 'hidden';
-      const bStatus = b.dataset.status || 'hidden';
-      const statusDiff = (statusPriority[aStatus] ?? 99) - (statusPriority[bStatus] ?? 99);
-      if (statusDiff !== 0) return statusDiff;
-      if (state.sort === 'price-high') return Number(b.dataset.price) - Number(a.dataset.price);
-      if (state.sort === 'price-low') return Number(a.dataset.price) - Number(b.dataset.price);
-      if (state.sort === 'orb-high') return Number(b.dataset.orbCount) - Number(a.dataset.orbCount);
-      if (state.sort === 'orb-low') return Number(a.dataset.orbCount) - Number(b.dataset.orbCount);
-      return Number(b.dataset.updatedAt) - Number(a.dataset.updatedAt);
-    };
+      const compareCards = (a, b) => {
+        const aStatus = a.dataset.status || 'hidden';
+        const bStatus = b.dataset.status || 'hidden';
+        const statusDiff = (statusPriority[aStatus] ?? 99) - (statusPriority[bStatus] ?? 99);
+        if (statusDiff !== 0) return statusDiff;
+        if (state.sort === 'price-high') return Number(b.dataset.price) - Number(a.dataset.price);
+        if (state.sort === 'price-low') return Number(a.dataset.price) - Number(b.dataset.price);
+        if (state.sort === 'orb-high') return Number(b.dataset.orbCount) - Number(a.dataset.orbCount);
+        if (state.sort === 'orb-low') return Number(a.dataset.orbCount) - Number(b.dataset.orbCount);
+        return Number(b.dataset.updatedAt) - Number(a.dataset.updatedAt);
+      };
 
-    const applyFilters = () => {
-      const orbMin = state.orbMin === '' ? null : Number(state.orbMin);
-      const orbMax = state.orbMax === '' ? null : Number(state.orbMax);
+      const applyFilters = () => {
+        const orbMin = state.orbMin === '' ? null : Number(state.orbMin);
+        const orbMax = state.orbMax === '' ? null : Number(state.orbMax);
 
-      const visibleCards = cards.filter((card) => {
-        const categoryOk = !state.category || card.dataset.category === state.category;
-        const tags = (card.dataset.tags || '').split(',').filter(Boolean);
-        const tagOk = !state.tag || tags.includes(state.tag);
-        const orbCount = Number(card.dataset.orbCount || 0);
-        const orbMinOk = orbMin === null || orbCount >= orbMin;
-        const orbMaxOk = orbMax === null || orbCount <= orbMax;
-        return categoryOk && tagOk && orbMinOk && orbMaxOk;
+        const visibleCards = cards.filter((card) => {
+          const categoryOk = !state.category || card.dataset.category === state.category;
+          const tagsForCard = (card.dataset.tags || '').split(',').filter(Boolean);
+          const tagOk = !state.tag || tagsForCard.includes(state.tag);
+          const orbCount = Number(card.dataset.orbCount || 0);
+          const orbMinOk = orbMin === null || orbCount >= orbMin;
+          const orbMaxOk = orbMax === null || orbCount <= orbMax;
+          return categoryOk && tagOk && orbMinOk && orbMaxOk;
+        });
+
+        cards.sort(compareCards).forEach((card) => {
+          card.style.display = visibleCards.includes(card) ? '' : 'none';
+          productGrid.appendChild(card);
+        });
+
+        emptyState.hidden = visibleCards.length > 0;
+        writeUrl();
+      };
+
+      categoryButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          state.category = button.dataset.category || '';
+          state.tag = '';
+          syncControls();
+          applyFilters();
+        });
       });
 
-      cards.sort(compareCards).forEach((card) => {
-        card.style.display = visibleCards.includes(card) ? '' : 'none';
-        productGrid.appendChild(card);
+      tagButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          state.tag = button.dataset.tag || '';
+          syncControls();
+          applyFilters();
+        });
       });
 
-      emptyState.hidden = visibleCards.length > 0;
-      writeUrl();
-    };
-
-    categoryButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        state.category = button.dataset.category || '';
-        state.tag = '';
+      filtersForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        state.sort = sortSelect.value;
+        state.orbMin = orbMinInput.value.trim();
+        state.orbMax = orbMaxInput.value.trim();
         syncControls();
         applyFilters();
       });
-    });
-
-    tagButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        state.tag = button.dataset.tag || '';
-        syncControls();
-        applyFilters();
-      });
-    });
-
-    filtersForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      state.sort = sortSelect.value;
-      state.orbMin = orbMinInput.value.trim();
-      state.orbMax = orbMaxInput.value.trim();
-      syncControls();
-      applyFilters();
-    });
 
       readFromUrl();
       syncControls();
