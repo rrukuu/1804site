@@ -1,201 +1,548 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import ProductGrid from '../components/ProductGrid.astro';
 import {
   PRODUCT_CATEGORIES,
-  type ProductQuery,
-  getFilteredProducts,
+  getVisibleProducts,
   getTagsByCategory,
+  getCategoryLabel,
+  getStatusLabel,
   type Product,
 } from '../lib/products';
 
-const url = new URL(Astro.request.url);
+const allProducts = await getVisibleProducts();
 
-const activeCategory = PRODUCT_CATEGORIES.find(
-  (category) => category.key === url.searchParams.get('category')
-)?.key;
-const activeTag = url.searchParams.get('tag') || undefined;
-const sort = (url.searchParams.get('sort') || 'newest') as ProductQuery['sort'];
-const orbMin = url.searchParams.get('orbMin') ? Number(url.searchParams.get('orbMin')) : undefined;
-const orbMax = url.searchParams.get('orbMax') ? Number(url.searchParams.get('orbMax')) : undefined;
+const productsJson = allProducts.map((p, i) => ({
+  slug: p.slug,
+  title: p.data.title,
+  price: p.data.price,
+  status: p.data.status,
+  statusLabel: getStatusLabel(p.data.status),
+  category: p.data.category,
+  categoryLabel: getCategoryLabel(p.data.category),
+  description: p.data.description,
+  tags: p.data.tags,
+  orbCount: p.data.orbCount ?? null,
+  coverImage: p.data.coverImage,
+  priority: p.data.priority,
+  updatedAt: p.data.updatedAt.getTime(),
+  no: i + 1,
+}));
 
-const products: Product[] = await getFilteredProducts({
-  category: activeCategory,
-  tag: activeTag,
-  sort,
-  orbMin,
-  orbMax,
-});
-const tags = await getTagsByCategory(activeCategory);
+const categoriesJson = PRODUCT_CATEGORIES;
 
-const sortOptions: { value: ProductQuery['sort']; label: string }[] = [
-  { value: 'newest', label: '新規出品順' },
+const sortOptions = [
+  { value: 'newest', label: '新着順' },
   { value: 'price-high', label: '価格が高い順' },
   { value: 'price-low', label: '価格が安い順' },
   { value: 'orb-high', label: 'オーブが多い順' },
   { value: 'orb-low', label: 'オーブが少ない順' },
 ];
-
-const buildFilterUrl = (params: Record<string, string | undefined>) => {
-  const next = new URLSearchParams(url.searchParams);
-  Object.entries(params).forEach(([key, value]) => {
-    if (!value) {
-      next.delete(key);
-      return;
-    }
-    next.set(key, value);
-  });
-
-  return `/?${next.toString()}`;
-};
 ---
 
-<BaseLayout title="モンスト商品一覧" description="オーブアカウント・代行・強垢をカテゴリで探せます">
+<BaseLayout title="モンスト商品一覧" description="モンストアカウント・代行のショップ">
   <div class="container">
-    <section class="hero">
+    <!-- Hero banner -->
+    <section class="hero-banner">
       <h1>モンスト販売マーケット</h1>
-      <p>アカウント販売（オーブアカウント）・代行・強垢販売をカテゴリごとに絞り込みできます</p>
+      <p>アカウント販売・代行・強垢販売をカテゴリごとに絞り込みできます</p>
     </section>
 
-    <section class="category-tabs" aria-label="カテゴリ選択">
-      <a href="/" class:list={['tab', { active: !activeCategory }]}>すべて</a>
-      {PRODUCT_CATEGORIES.map((category) => (
-        <a
-          href={buildFilterUrl({ category: category.key, tag: undefined })}
-          class:list={['tab', { active: activeCategory === category.key }]}
-        >
-          {category.label}
-        </a>
+    <!-- Category pills -->
+    <section class="category-pills" id="category-pills">
+      <button class="cat-pill active" data-category="">すべて</button>
+      {categoriesJson.map((cat) => (
+        <button class="cat-pill" data-category={cat.key}>{cat.label}</button>
       ))}
     </section>
 
-    <section class="filters-panel">
-      <form method="get" class="filters-form">
-        {activeCategory && <input type="hidden" name="category" value={activeCategory} />}
-        {activeTag && <input type="hidden" name="tag" value={activeTag} />}
-
-        <label>
-          並び順
-          <select name="sort">
-            {sortOptions.map((option) => (
-              <option value={option.value} selected={sort === option.value}>
-                {option.label}
-              </option>
+    <!-- Filter bar -->
+    <section class="filter-card">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="sort-select">並び順</label>
+          <select id="sort-select">
+            {sortOptions.map((opt) => (
+              <option value={opt.value}>{opt.label}</option>
             ))}
           </select>
-        </label>
-
-        <label>
-          オーブ数（下限）
-          <input type="number" name="orbMin" min="0" value={orbMin ?? ''} placeholder="例: 300" />
-        </label>
-
-        <label>
-          オーブ数（上限）
-          <input type="number" name="orbMax" min="0" value={orbMax ?? ''} placeholder="例: 2000" />
-        </label>
-
-        <button class="btn btn-primary" type="submit">絞り込む</button>
-      </form>
-
-      {tags.length > 0 && (
-        <nav class="tag-filter" aria-label="サブカテゴリ">
-          <a href={buildFilterUrl({ tag: undefined })} class:list={['tag-item', { active: !activeTag }]}>すべて</a>
-          {tags.map(({ tag, count }) => (
-            <a
-              href={buildFilterUrl({ tag })}
-              class:list={['tag-item', { active: activeTag === tag }]}
-            >
-              {tag} <span>({count})</span>
-            </a>
-          ))}
-        </nav>
-      )}
+        </div>
+        <div class="filter-group">
+          <label for="orb-min">オーブ下限</label>
+          <input type="number" id="orb-min" min="0" placeholder="0" />
+        </div>
+        <div class="filter-group">
+          <label for="orb-max">オーブ上限</label>
+          <input type="number" id="orb-max" min="0" placeholder="∞" />
+        </div>
+        <button class="btn btn-primary filter-submit" id="filter-btn">絞り込む</button>
+      </div>
+      <nav class="tag-row" id="tag-filter"></nav>
     </section>
 
-    <section class="products">
-      <ProductGrid products={products} />
-    </section>
+    <!-- Section heading -->
+    <div class="list-heading">
+      <h2 class="section-heading" id="section-title">在庫一覧</h2>
+      <span class="count-badge" id="product-count"></span>
+    </div>
+
+    <!-- Product list -->
+    <div id="products-container"></div>
   </div>
 </BaseLayout>
 
-<style>
-  .hero { text-align: center; padding: 2rem 0; }
-  .hero p { color: var(--color-text-muted); }
+<script define:vars={{ productsJson, categoriesJson }}>
+  const STATE = { category: '', tag: '', sort: 'newest', orbMin: '', orbMax: '' };
+  const STATUS_PRIORITY = { active: 0, reserved: 1, sold: 2, draft: 3, hidden: 4 };
+  const CATEGORY_LABELS = { '': '在庫一覧' };
+  categoriesJson.forEach((c) => { CATEGORY_LABELS[c.key] = c.label; });
 
-  .category-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+  const categoryPills = document.getElementById('category-pills');
+  const tagFilter = document.getElementById('tag-filter');
+  const productsContainer = document.getElementById('products-container');
+  const sortSelect = document.getElementById('sort-select');
+  const orbMinInput = document.getElementById('orb-min');
+  const orbMaxInput = document.getElementById('orb-max');
+  const filterBtn = document.getElementById('filter-btn');
+  const sectionTitle = document.getElementById('section-title');
+  const productCount = document.getElementById('product-count');
+
+  function readUrl() {
+    const p = new URLSearchParams(window.location.search);
+    STATE.category = p.get('category') || '';
+    STATE.tag = p.get('tag') || '';
+    STATE.sort = p.get('sort') || 'newest';
+    STATE.orbMin = p.get('orbMin') || '';
+    STATE.orbMax = p.get('orbMax') || '';
   }
 
-  .tab {
-    border: 1px solid var(--color-border);
+  function writeUrl() {
+    const p = new URLSearchParams();
+    if (STATE.category) p.set('category', STATE.category);
+    if (STATE.tag) p.set('tag', STATE.tag);
+    if (STATE.sort && STATE.sort !== 'newest') p.set('sort', STATE.sort);
+    if (STATE.orbMin) p.set('orbMin', STATE.orbMin);
+    if (STATE.orbMax) p.set('orbMax', STATE.orbMax);
+    const qs = p.toString();
+    window.history.replaceState(null, '', qs ? `/?${qs}` : '/');
+  }
+
+  function syncUi() {
+    categoryPills.querySelectorAll('.cat-pill').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.category === STATE.category);
+    });
+    sortSelect.value = STATE.sort;
+    orbMinInput.value = STATE.orbMin;
+    orbMaxInput.value = STATE.orbMax;
+    sectionTitle.textContent = CATEGORY_LABELS[STATE.category] || '在庫一覧';
+  }
+
+  function filterSort() {
+    let list = productsJson.filter((p) => {
+      if (STATE.category && p.category !== STATE.category) return false;
+      if (STATE.tag && !p.tags.includes(STATE.tag)) return false;
+      const oMin = STATE.orbMin ? Number(STATE.orbMin) : null;
+      const oMax = STATE.orbMax ? Number(STATE.orbMax) : null;
+      if (oMin !== null && (p.orbCount ?? 0) < oMin) return false;
+      if (oMax !== null && (p.orbCount ?? 0) > oMax) return false;
+      return true;
+    });
+    list.sort((a, b) => {
+      const sd = (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9);
+      if (sd !== 0) return sd;
+      switch (STATE.sort) {
+        case 'price-high': return b.price - a.price;
+        case 'price-low': return a.price - b.price;
+        case 'orb-high': return (b.orbCount ?? 0) - (a.orbCount ?? 0);
+        case 'orb-low': return (a.orbCount ?? 0) - (b.orbCount ?? 0);
+        default: return b.updatedAt - a.updatedAt;
+      }
+    });
+    return list;
+  }
+
+  function computeTags(cat) {
+    const m = new Map();
+    productsJson.filter((p) => (cat ? p.category === cat : true))
+      .forEach((p) => p.tags.forEach((t) => m.set(t, (m.get(t) || 0) + 1)));
+    return Array.from(m.entries()).map(([t, c]) => ({ tag: t, count: c })).sort((a, b) => b.count - a.count);
+  }
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function renderCard(p) {
+    const tagsHtml = p.tags.slice(0, 3).map((t) =>
+      `<span class="tag-pill">${esc(t)}</span>`
+    ).join('');
+    const orbText = p.orbCount != null ? ` / オーブ${p.orbCount.toLocaleString()}個` : '';
+
+    return `<a href="/products/${p.slug}" class="item-card">
+      <div class="item-image">
+        <img src="${esc(p.coverImage)}" alt="${esc(p.title)}" loading="lazy" />
+      </div>
+      <div class="item-body">
+        <div class="item-tags">${tagsHtml}</div>
+        <h3 class="item-title">【No.${p.no}】${esc(p.title)}</h3>
+        <p class="item-price">${p.price.toLocaleString()}円${orbText}</p>
+      </div>
+      <div class="item-status">
+        <span class="status-badge status-${p.status}">${esc(p.statusLabel)}</span>
+      </div>
+    </a>`;
+  }
+
+  function renderProducts(list) {
+    productCount.textContent = `${list.length}件`;
+    if (list.length === 0) {
+      productsContainer.innerHTML = `<div class="empty-state"><p>該当する商品がありません</p></div>`;
+      return;
+    }
+    productsContainer.innerHTML = `<div class="item-list">${list.map(renderCard).join('')}</div>`;
+  }
+
+  function renderTags() {
+    const tags = computeTags(STATE.category);
+    if (tags.length === 0) { tagFilter.innerHTML = ''; return; }
+    const allBtn = `<button class="tag-btn${!STATE.tag ? ' active' : ''}" data-tag="">すべて</button>`;
+    const btns = tags.map(({ tag, count }) =>
+      `<button class="tag-btn${STATE.tag === tag ? ' active' : ''}" data-tag="${esc(tag)}">${esc(tag)} (${count})</button>`
+    ).join('');
+    tagFilter.innerHTML = allBtn + btns;
+  }
+
+  function render() {
+    writeUrl(); syncUi(); renderTags(); renderProducts(filterSort());
+  }
+
+  categoryPills.addEventListener('click', (e) => {
+    const btn = e.target.closest('.cat-pill');
+    if (!btn) return;
+    STATE.category = btn.dataset.category;
+    STATE.tag = '';
+    render();
+  });
+
+  tagFilter.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tag-btn');
+    if (!btn) return;
+    STATE.tag = btn.dataset.tag;
+    render();
+  });
+
+  sortSelect.addEventListener('change', () => { STATE.sort = sortSelect.value; render(); });
+  filterBtn.addEventListener('click', () => { STATE.orbMin = orbMinInput.value; STATE.orbMax = orbMaxInput.value; render(); });
+  window.addEventListener('popstate', () => { readUrl(); render(); });
+
+  readUrl();
+  render();
+</script>
+
+<style>
+  /* Hero banner */
+  .hero-banner {
     background: var(--color-bg-card);
-    border-radius: 9999px;
-    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+    border: 1px solid var(--color-border);
+  }
+
+  .hero-banner h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-banner p {
+    margin: 0;
+    font-size: 0.875rem;
     color: var(--color-text-muted);
   }
 
-  .tab.active {
+  /* Category pills */
+  .category-pills {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.75rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-pills::-webkit-scrollbar { display: none; }
+
+  .cat-pill {
+    all: unset;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 9999px;
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    transition: all var(--transition-fast);
+  }
+
+  .cat-pill:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .cat-pill.active {
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: #fff;
   }
 
-  .filters-panel {
-    border: 1px solid var(--color-border);
+  /* Filter card */
+  .filter-card {
     background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
   }
 
-  .filters-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  .filter-row {
+    display: flex;
     gap: 0.75rem;
     align-items: end;
-  }
-
-  .filters-form label {
-    display: grid;
-    gap: 0.25rem;
-    font-size: 0.875rem;
-  }
-
-  .filters-form input,
-  .filters-form select {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: calc(var(--radius) / 2);
-    background: var(--color-bg);
-    color: var(--color-text);
-  }
-
-  .tag-filter {
-    display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 1rem;
   }
 
-  .tag-item {
-    font-size: 0.8125rem;
-    border: 1px solid var(--color-border);
-    border-radius: 9999px;
-    padding: 0.25rem 0.75rem;
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1875rem;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .filter-group label {
+    font-size: 0.6875rem;
+    font-weight: 600;
     color: var(--color-text-muted);
   }
 
-  .tag-item.active {
+  .filter-group select,
+  .filter-group input {
+    padding: 0.4375rem 0.625rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.8125rem;
+  }
+
+  .filter-group select:focus,
+  .filter-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(33,150,243,0.15);
+  }
+
+  .filter-submit {
+    flex: none;
+    align-self: end;
+    padding: 0.4375rem 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+  }
+
+  .tag-row:empty { display: none; }
+
+  /* List heading */
+  .list-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .list-heading .section-heading {
+    margin-bottom: 0;
+  }
+
+  .count-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 640px) {
+    .filter-row { flex-direction: column; }
+    .filter-submit { width: 100%; }
+  }
+</style>
+
+<style is:global>
+  /* Item list */
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .item-card {
+    display: flex;
+    align-items: stretch;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition-fast);
+    min-height: 100px;
+  }
+
+  .item-card:first-child {
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .item-card:last-child {
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+
+  .item-card:first-child:last-child {
+    border-radius: var(--radius);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .item-card:hover {
+    background: #f8fafc;
+    text-decoration: none;
+  }
+
+  .item-card:active {
+    background: #f0f4f8;
+  }
+
+  .item-image {
+    width: 110px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .item-body {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .item-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .item-price {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--color-text);
+    margin-top: auto;
+  }
+
+  .item-status {
+    display: flex;
+    align-items: flex-end;
+    padding: 0.75rem 0.75rem;
+    flex-shrink: 0;
+  }
+
+  /* Tag filter buttons */
+  .tag-btn {
+    all: unset;
+    cursor: pointer;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    font-family: inherit;
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    padding: 0.1875rem 0.625rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-card);
+    transition: all 150ms ease;
+    white-space: nowrap;
+  }
+
+  .tag-btn:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
   }
 
-  .products {
-    padding-bottom: 3rem;
+  .tag-btn.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+
+  /* Status badge for cards */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    font-size: 0.625rem;
+    padding: 0.1875rem 0.5rem;
+  }
+  .status-active { background: var(--color-primary); color: #fff; }
+  .status-reserved { background: var(--color-reserved); color: #fff; }
+  .status-sold { background: var(--color-sold); color: #fff; }
+  .status-draft { background: #e0e0e0; color: #616161; }
+  .status-hidden { background: #e0e0e0; color: #616161; }
+
+  @media (max-width: 640px) {
+    .item-image { width: 90px; }
+    .item-body { padding: 0.5rem 0.75rem; }
+    .item-title { font-size: 0.8125rem; }
+    .item-price { font-size: 0.875rem; }
   }
 </style>

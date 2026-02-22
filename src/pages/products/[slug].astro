@@ -1,10 +1,8 @@
 ---
 // src/pages/products/[slug].astro
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import StatusBadge from '../../components/StatusBadge.astro';
-import { getVisibleProducts, getProductBySlug, shouldShowPurchaseUrl, sanitizeForPublic, getCategoryLabel } from '../../lib/products';
+import { getVisibleProducts, getProductBySlug, shouldShowPurchaseUrl, sanitizeForPublic, getCategoryLabel, getStatusLabel } from '../../lib/products';
 
-// 静的パス生成
 export async function getStaticPaths() {
   const products = await getVisibleProducts();
   return products.map((product) => ({
@@ -15,208 +13,189 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const product = await getProductBySlug(slug as string);
 
-// 商品が見つからない場合は404
 if (!product) {
   return Astro.redirect('/404');
 }
 
-// notesを除外した公開用データ
 const publicData = sanitizeForPublic(product);
 const { Content } = await product.render();
+const statusLabel = getStatusLabel(publicData.status);
 ---
 
 <BaseLayout title={publicData.title} description={publicData.description}>
   <div class="container">
     <article class="product-detail">
-      <!-- パンくず -->
-      <nav class="breadcrumb">
-        <a href="/">商品一覧</a>
-        <span class="separator">/</span>
-        <span>{publicData.title}</span>
+      <!-- Back nav -->
+      <nav class="back-link">
+        <a href="/">← 商品一覧に戻る</a>
       </nav>
 
-      <div class="product-layout">
-        <!-- 画像エリア -->
-        <div class="product-images">
-          <div class="main-image">
-            <img 
-              src={publicData.coverImage} 
-              alt={publicData.title}
-              loading="eager"
-            />
-          </div>
-          {publicData.images.length > 0 && (
-            <div class="thumbnail-grid">
-              {publicData.images.map((img, index) => (
-                <button 
-                  class="thumbnail" 
-                  data-index={index}
-                  type="button"
-                  aria-label={`画像 ${index + 1} を表示`}
-                >
-                  <img src={img} alt="" loading="lazy" />
-                </button>
-              ))}
-            </div>
-          )}
+      <!-- Image -->
+      <div class="detail-image-card">
+        <div class="main-image">
+          <img
+            src={publicData.coverImage}
+            alt={publicData.title}
+            loading="eager"
+          />
         </div>
-
-        <!-- 商品情報 -->
-        <div class="product-info">
-          <header>
-            <StatusBadge status={publicData.status} />
-            <h1>{publicData.title}</h1>
-            <p class="price">¥{publicData.price.toLocaleString()}</p>
-          </header>
-
-          <p class="category">カテゴリ: {getCategoryLabel(publicData.category)}</p>
-          {typeof publicData.orbCount === 'number' && <p class="orb-count">オーブ数: {publicData.orbCount.toLocaleString()}個</p>}
-
-          <!-- タグ -->
-          {publicData.tags.length > 0 && (
-            <div class="tags">
-              {publicData.tags.map((tag) => (
-                <a href={`/?tag=${encodeURIComponent(tag)}`} class="tag">
-                  {tag}
-                </a>
-              ))}
-            </div>
-          )}
-
-          <!-- 購入ボタン -->
-          <div class="purchase-area">
-            {shouldShowPurchaseUrl(publicData.status) && publicData.purchaseUrl ? (
-              <a 
-                href={publicData.purchaseUrl} 
-                class="btn btn-primary" 
-                target="_blank" 
-                rel="noopener noreferrer"
+        {publicData.images.length > 0 && (
+          <div class="thumbnail-grid">
+            {publicData.images.map((img, index) => (
+              <button
+                class="thumbnail"
+                data-index={index}
+                type="button"
+                aria-label={`画像 ${index + 1} を表示`}
               >
-                購入ページへ
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </a>
-            ) : publicData.status === 'reserved' ? (
-              <div class="status-message reserved">
-                <span>取り置き中です</span>
-              </div>
-            ) : publicData.status === 'sold' ? (
-              <div class="status-message sold">
-                <span>この商品は売却済みです</span>
-              </div>
-            ) : null}
+                <img src={img} alt="" loading="lazy" />
+              </button>
+            ))}
           </div>
-
-          <!-- 説明（サマリー） -->
-          <div class="summary">
-            <p>{publicData.description}</p>
-          </div>
-
-          <!-- メタ情報 -->
-          <div class="meta">
-            <dl>
-              <div>
-                <dt>公開日</dt>
-                <dd>{publicData.publishedAt.toLocaleDateString('ja-JP')}</dd>
-              </div>
-              <div>
-                <dt>更新日</dt>
-                <dd>{publicData.updatedAt.toLocaleDateString('ja-JP')}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
+        )}
       </div>
 
-      <!-- 詳細説明（Markdown本文） -->
-      <section class="description">
-        <h2>詳細説明</h2>
+      <!-- Product info card -->
+      <div class="info-card">
+        <div class="product-header">
+          <h1>{publicData.title}</h1>
+        </div>
+        {publicData.tags.length > 0 && (
+          <div class="detail-tags">
+            {publicData.tags.map((tag) => (
+              <a href={`/?tag=${encodeURIComponent(tag)}`} class="tag-pill">{tag}</a>
+            ))}
+          </div>
+        )}
+        <p class="detail-price">
+          <span class="price-yen">¥{publicData.price.toLocaleString()}</span>
+          <span class="price-label">円(税込)</span>
+        </p>
+      </div>
+
+      <!-- Account info section -->
+      <div class="section-card">
+        <h2 class="section-heading">このアカウントの情報</h2>
+        <table class="info-table">
+          <tr>
+            <td>カテゴリ</td>
+            <td>{getCategoryLabel(publicData.category)}</td>
+          </tr>
+          {typeof publicData.orbCount === 'number' && (
+            <tr>
+              <td>オーブ数</td>
+              <td>{publicData.orbCount.toLocaleString()}個</td>
+            </tr>
+          )}
+          <tr>
+            <td>公開日</td>
+            <td>{publicData.publishedAt.toLocaleDateString('ja-JP')}</td>
+          </tr>
+          <tr>
+            <td>更新日</td>
+            <td>{publicData.updatedAt.toLocaleDateString('ja-JP')}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Description section -->
+      <div class="section-card">
+        <h2 class="section-heading">このアカウントのポイント</h2>
+        <p class="detail-desc">{publicData.description}</p>
+      </div>
+
+      <!-- Markdown body -->
+      <div class="section-card">
+        <h2 class="section-heading">詳細説明</h2>
         <div class="prose">
           <Content />
         </div>
-      </section>
-
-      <!-- 一覧へ戻る -->
-      <nav class="back-nav">
-        <a href="/">← 商品一覧へ戻る</a>
-      </nav>
+      </div>
     </article>
+  </div>
+
+  <!-- Sticky bottom bar -->
+  <div class="sticky-bottom">
+    <div class="sticky-inner">
+      <div class="sticky-price-area">
+        <span class="sticky-status status-badge status-{publicData.status}">{statusLabel}</span>
+        <span class="sticky-price">¥{publicData.price.toLocaleString()}</span>
+      </div>
+      {shouldShowPurchaseUrl(publicData.status) && publicData.purchaseUrl ? (
+        <a
+          href={publicData.purchaseUrl}
+          class="btn btn-primary sticky-btn"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          DMで相談
+        </a>
+      ) : publicData.status === 'reserved' ? (
+        <span class="btn btn-disabled sticky-btn">取り置き中</span>
+      ) : publicData.status === 'sold' ? (
+        <span class="btn btn-disabled sticky-btn">売却済み</span>
+      ) : null}
+    </div>
   </div>
 </BaseLayout>
 
 <style>
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    margin-bottom: 2rem;
+  .back-link {
+    margin-bottom: 0.75rem;
   }
 
-  .breadcrumb a {
+  .back-link a {
     color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: color var(--transition-fast);
   }
 
-  .breadcrumb a:hover {
+  .back-link a:hover {
     color: var(--color-primary);
+    text-decoration: none;
   }
 
-  .separator {
-    opacity: 0.5;
-  }
-
-  .product-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-    margin-bottom: 3rem;
-  }
-
-  @media (max-width: 768px) {
-    .product-layout {
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }
+  .detail-image-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 0.75rem;
   }
 
   .main-image {
-    aspect-ratio: 1;
-    background: var(--color-bg);
-    border-radius: var(--radius);
+    aspect-ratio: 4 / 3;
+    background: #1a1a2e;
     overflow: hidden;
   }
 
   .main-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
   }
 
   .thumbnail-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    gap: 0.375rem;
+    padding: 0.5rem;
   }
 
   .thumbnail {
     aspect-ratio: 1;
     border: 2px solid transparent;
-    border-radius: calc(var(--radius) / 2);
+    border-radius: var(--radius-sm);
     overflow: hidden;
     cursor: pointer;
     padding: 0;
     background: none;
-    transition: border-color 0.2s, opacity 0.2s;
     opacity: 0.7;
+    transition: all var(--transition-fast);
   }
 
-  .thumbnail:hover,
-  .thumbnail:focus {
+  .thumbnail:hover, .thumbnail:focus {
     opacity: 1;
     border-color: var(--color-primary);
     outline: none;
@@ -228,160 +207,144 @@ const { Content } = await product.render();
     object-fit: cover;
   }
 
-  .product-info header {
-    margin-bottom: 1.5rem;
+  /* Info card */
+  .info-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
   }
 
-  .product-info h1 {
-    font-size: 1.75rem;
-    margin: 0.75rem 0 0.5rem;
-    line-height: 1.3;
-  }
-
-  .price {
-    font-size: 1.75rem;
+  .product-header h1 {
+    font-size: 1.25rem;
     font-weight: 700;
-    color: var(--color-text);
+    margin: 0 0 0.75rem;
+    line-height: 1.4;
+  }
+
+  .detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+  }
+
+  .detail-tags .tag-pill {
+    text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+
+  .detail-tags .tag-pill:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .detail-price {
     margin: 0;
   }
 
-  .category,
-  .orb-count {
-    margin: 0 0 0.75rem;
+  .price-yen {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--color-sold);
+    letter-spacing: -0.02em;
+  }
+
+  .price-label {
+    font-size: 0.875rem;
     color: var(--color-text-muted);
-    font-size: 0.95rem;
-  }
-
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .purchase-area {
-    margin-bottom: 1.5rem;
-  }
-
-  .purchase-area .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 1rem;
-    font-size: 1.125rem;
-    justify-content: center;
-  }
-
-  .status-message {
-    padding: 1rem;
-    border-radius: var(--radius);
-    text-align: center;
     font-weight: 500;
   }
 
-  .status-message.reserved {
-    background: #fef9c3;
-    color: #a16207;
+  /* Section cards */
+  .section-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
   }
 
-  .status-message.sold {
-    background: #fee2e2;
-    color: #dc2626;
-  }
-
-  .summary {
-    padding: 1rem 0;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .summary p {
+  .detail-desc {
     margin: 0;
-    color: var(--color-text-muted);
-    line-height: 1.7;
-  }
-
-  .meta {
-    padding: 1rem 0;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .meta dl {
-    display: flex;
-    gap: 2rem;
-    margin: 0;
-  }
-
-  .meta dl > div {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .meta dt {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-  }
-
-  .meta dd {
-    font-size: 0.875rem;
-    margin: 0;
-  }
-
-  .description {
-    border-top: 1px solid var(--color-border);
-    padding-top: 2rem;
-    margin-bottom: 2rem;
-  }
-
-  .description h2 {
-    font-size: 1.25rem;
-    margin: 0 0 1rem;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+    font-size: 0.9375rem;
   }
 
   .prose {
     line-height: 1.8;
+    color: var(--color-text-secondary);
+    font-size: 0.9375rem;
   }
 
-  .prose :global(h2) {
-    font-size: 1.25rem;
-    margin: 2rem 0 1rem;
-  }
+  .prose :global(h2) { font-size: 1.125rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: var(--color-text); }
+  .prose :global(h3) { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text); }
+  .prose :global(p) { margin: 0 0 0.75rem; }
+  .prose :global(ul), .prose :global(ol) { margin: 0 0 0.75rem; padding-left: 1.25rem; }
+  .prose :global(li) { margin: 0.25rem 0; }
 
-  .prose :global(h3) {
-    font-size: 1.1rem;
-    margin: 1.5rem 0 0.75rem;
-  }
-
-  .prose :global(p) {
-    margin: 0 0 1rem;
-  }
-
-  .prose :global(ul),
-  .prose :global(ol) {
-    margin: 0 0 1rem;
-    padding-left: 1.5rem;
-  }
-
-  .prose :global(li) {
-    margin: 0.25rem 0;
-  }
-
-  .back-nav {
-    padding-top: 2rem;
+  /* Sticky bottom CTA */
+  .sticky-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    background: var(--color-bg-card);
     border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
   }
 
-  .back-nav a {
-    color: var(--color-text-muted);
+  .sticky-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
 
-  .back-nav a:hover {
-    color: var(--color-primary);
+  .sticky-price-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .sticky-status {
+    font-size: 0.5625rem;
+    padding: 0.125rem 0.375rem;
+    align-self: flex-start;
+  }
+
+  .sticky-price {
+    font-size: 1.375rem;
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: -0.01em;
+  }
+
+  .sticky-btn {
+    padding: 0.75rem 2rem;
+    font-size: 0.9375rem;
+    border-radius: var(--radius);
+    min-width: 140px;
+  }
+
+  .product-detail {
+    padding-bottom: 5rem; /* space for sticky bar */
+  }
+
+  .btn-disabled {
+    background: #e0e0e0;
+    color: #9e9e9e;
+    cursor: not-allowed;
   }
 </style>
 
 <script>
-  // サムネイルクリックで画像切り替え
   document.addEventListener('DOMContentLoaded', () => {
     const mainImage = document.querySelector('.main-image img') as HTMLImageElement;
     const thumbnails = document.querySelectorAll('.thumbnail');
