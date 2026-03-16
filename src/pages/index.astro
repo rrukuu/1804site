@@ -37,6 +37,13 @@ const sortOptions = [
   { value: 'orb-high', label: 'オーブが多い順' },
   { value: 'orb-low', label: 'オーブが少ない順' },
 ];
+
+const categoryIcons = {
+  '': '📋',
+  'orb-account': '🔮',
+  'boosting': '⚡',
+  'strong-account': '💪',
+};
 ---
 
 <BaseLayout title="モンスト商品一覧" description="モンストアカウント・代行のショップ">
@@ -47,25 +54,40 @@ const sortOptions = [
       <p>アカウント販売・代行・強垢販売をカテゴリごとに絞り込みできます</p>
     </section>
 
-    <!-- Category pills -->
-    <section class="category-pills" id="category-pills">
-      <button class="cat-pill active" data-category="">すべて</button>
+    <!-- Category cards -->
+    <section class="category-nav" id="category-pills">
+      <button class="cat-card active" data-category="">
+        <span class="cat-icon">📋</span>
+        <span class="cat-label">すべて</span>
+      </button>
       {categoriesJson.map((cat) => (
-        <button class="cat-pill" data-category={cat.key}>{cat.label}</button>
+        <button class="cat-card" data-category={cat.key}>
+          <span class="cat-icon">{categoryIcons[cat.key] || '📦'}</span>
+          <span class="cat-label">{cat.label}</span>
+        </button>
       ))}
+    </section>
+
+    <!-- Sort bar (separated) -->
+    <section class="sort-bar">
+      <div class="sort-bar-inner">
+        <span class="sort-label">並び順</span>
+        <div class="sort-buttons" id="sort-buttons">
+          {sortOptions.map((opt) => (
+            <button
+              class={`sort-btn ${opt.value === 'newest' ? 'active' : ''}`}
+              data-sort={opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
 
     <!-- Filter bar -->
     <section class="filter-card">
       <div class="filter-row">
-        <div class="filter-group">
-          <label for="sort-select">並び順</label>
-          <select id="sort-select">
-            {sortOptions.map((opt) => (
-              <option value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
         <div class="filter-group">
           <label for="orb-min">オーブ下限</label>
           <input type="number" id="orb-min" min="0" placeholder="0" />
@@ -99,7 +121,7 @@ const sortOptions = [
   const categoryPills = document.getElementById('category-pills');
   const tagFilter = document.getElementById('tag-filter');
   const productsContainer = document.getElementById('products-container');
-  const sortSelect = document.getElementById('sort-select');
+  const sortButtons = document.getElementById('sort-buttons');
   const orbMinInput = document.getElementById('orb-min');
   const orbMaxInput = document.getElementById('orb-max');
   const filterBtn = document.getElementById('filter-btn');
@@ -127,10 +149,12 @@ const sortOptions = [
   }
 
   function syncUi() {
-    categoryPills.querySelectorAll('.cat-pill').forEach((btn) => {
+    categoryPills.querySelectorAll('.cat-card').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.category === STATE.category);
     });
-    sortSelect.value = STATE.sort;
+    sortButtons.querySelectorAll('.sort-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.sort === STATE.sort);
+    });
     orbMinInput.value = STATE.orbMin;
     orbMaxInput.value = STATE.orbMax;
     sectionTitle.textContent = CATEGORY_LABELS[STATE.category] || '在庫一覧';
@@ -171,21 +195,35 @@ const sortOptions = [
 
   function renderCard(p) {
     const tagsHtml = p.tags.slice(0, 3).map((t) =>
-      `<span class="tag-pill">${esc(t)}</span>`
+      `<span class="card-tag-mini">${esc(t)}</span>`
     ).join('');
     const orbText = p.orbCount != null ? ` / オーブ${p.orbCount.toLocaleString()}個` : '';
+    const isSold = p.status === 'sold';
+    const isReserved = p.status === 'reserved';
+    const soldBadge = isSold
+      ? `<div class="sold-ribbon"><span>SOLD</span></div>`
+      : isReserved
+        ? `<div class="sold-ribbon reserved-ribbon"><span>予約済</span></div>`
+        : '';
 
-    return `<a href="/products/${p.slug}" class="item-card">
-      <div class="item-image">
+    // Truncate description to ~80 chars
+    const descTrunc = p.description.length > 80
+      ? p.description.substring(0, 80) + '…'
+      : p.description;
+
+    return `<a href="/products/${p.slug}" class="product-card-v2${isSold ? ' is-sold' : ''}">
+      <div class="card-v2-image">
         <img src="${esc(p.coverImage)}" alt="${esc(p.title)}" loading="lazy" />
+        ${soldBadge}
       </div>
-      <div class="item-body">
-        <div class="item-tags">${tagsHtml}</div>
-        <h3 class="item-title">【No.${p.no}】${esc(p.title)}</h3>
-        <p class="item-price">${p.price.toLocaleString()}円${orbText}</p>
-      </div>
-      <div class="item-status">
-        <span class="status-badge status-${p.status}">${esc(p.statusLabel)}</span>
+      <div class="card-v2-body">
+        <h3 class="card-v2-title">【No.${p.no}】${esc(p.title)}</h3>
+        <p class="card-v2-desc">${esc(descTrunc)}</p>
+        <p class="card-v2-price">${p.price.toLocaleString()}円${orbText}</p>
+        <div class="card-v2-footer">
+          <div class="card-v2-tags">${tagsHtml}</div>
+          <span class="status-badge-mini status-${p.status}">${esc(p.statusLabel)}</span>
+        </div>
       </div>
     </a>`;
   }
@@ -196,7 +234,7 @@ const sortOptions = [
       productsContainer.innerHTML = `<div class="empty-state"><p>該当する商品がありません</p></div>`;
       return;
     }
-    productsContainer.innerHTML = `<div class="item-list">${list.map(renderCard).join('')}</div>`;
+    productsContainer.innerHTML = `<div class="product-grid-v2">${list.map(renderCard).join('')}</div>`;
   }
 
   function renderTags() {
@@ -214,7 +252,7 @@ const sortOptions = [
   }
 
   categoryPills.addEventListener('click', (e) => {
-    const btn = e.target.closest('.cat-pill');
+    const btn = e.target.closest('.cat-card');
     if (!btn) return;
     STATE.category = btn.dataset.category;
     STATE.tag = '';
@@ -228,7 +266,13 @@ const sortOptions = [
     render();
   });
 
-  sortSelect.addEventListener('change', () => { STATE.sort = sortSelect.value; render(); });
+  sortButtons.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sort-btn');
+    if (!btn) return;
+    STATE.sort = btn.dataset.sort;
+    render();
+  });
+
   filterBtn.addEventListener('click', () => { STATE.orbMin = orbMinInput.value; STATE.orbMax = orbMaxInput.value; render(); });
   window.addEventListener('popstate', () => { readUrl(); render(); });
 
@@ -260,39 +304,120 @@ const sortOptions = [
     color: var(--color-text-muted);
   }
 
-  /* Category pills */
-  .category-pills {
+  /* ==================== */
+  /* Category card nav     */
+  /* ==================== */
+  .category-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.625rem;
+    margin-bottom: 1rem;
+  }
+
+  .cat-card {
+    all: unset;
+    cursor: pointer;
     display: flex;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 1rem 0.5rem;
+    font-family: inherit;
+    background: var(--color-bg-card);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius);
+    transition: all var(--transition-base);
+    text-align: center;
+  }
+
+  .cat-card:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  .cat-card.active {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.25);
+  }
+
+  .cat-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .cat-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    .category-nav {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ==================== */
+  /* Sort bar (separated) */
+  /* ==================== */
+  .sort-bar {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .sort-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .sort-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sort-buttons {
+    display: flex;
+    gap: 0.375rem;
     overflow-x: auto;
-    padding-bottom: 0.25rem;
-    margin-bottom: 0.75rem;
     -webkit-overflow-scrolling: touch;
   }
 
-  .category-pills::-webkit-scrollbar { display: none; }
+  .sort-buttons::-webkit-scrollbar { display: none; }
 
-  .cat-pill {
+  .sort-btn {
     all: unset;
     cursor: pointer;
-    white-space: nowrap;
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
     font-family: inherit;
+    white-space: nowrap;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
     border-radius: 9999px;
     border: 1.5px solid var(--color-border);
     color: var(--color-text-muted);
-    background: var(--color-bg-card);
+    background: var(--color-bg);
     transition: all var(--transition-fast);
   }
 
-  .cat-pill:hover {
+  .sort-btn:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
   }
 
-  .cat-pill.active {
+  .sort-btn.active {
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: #fff;
@@ -400,79 +525,114 @@ const sortOptions = [
 </style>
 
 <style is:global>
-  /* Item list */
-  .item-list {
+  /* ======================== */
+  /* Product grid v2 (cards)  */
+  /* ======================== */
+  .product-grid-v2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .product-grid-v2 {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.625rem;
+    }
+  }
+
+  .product-card-v2 {
     display: flex;
     flex-direction: column;
-    gap: 0;
-  }
-
-  .item-card {
-    display: flex;
-    align-items: stretch;
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
-    border-bottom: none;
+    border-radius: var(--radius);
+    overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: background var(--transition-fast);
-    min-height: 100px;
+    transition: box-shadow var(--transition-base), transform var(--transition-base);
   }
 
-  .item-card:first-child {
-    border-radius: var(--radius) var(--radius) 0 0;
-  }
-
-  .item-card:last-child {
-    border-bottom: 1px solid var(--color-border);
-    border-radius: 0 0 var(--radius) var(--radius);
-  }
-
-  .item-card:first-child:last-child {
-    border-radius: var(--radius);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .item-card:hover {
-    background: #f8fafc;
+  .product-card-v2:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
     text-decoration: none;
   }
 
-  .item-card:active {
-    background: #f0f4f8;
+  .product-card-v2.is-sold {
+    opacity: 0.75;
   }
 
-  .item-image {
-    width: 110px;
-    flex-shrink: 0;
+  .product-card-v2.is-sold:hover {
+    opacity: 0.9;
+  }
+
+  /* Card image with fixed aspect ratio */
+  .card-v2-image {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: #1a1a2e;
     overflow: hidden;
   }
 
-  .item-image img {
+  .card-v2-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s ease;
   }
 
-  .item-body {
+  .product-card-v2:hover .card-v2-image img {
+    transform: scale(1.05);
+  }
+
+  /* SOLD ribbon (top-left triangle) */
+  .sold-ribbon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 70px;
+    height: 70px;
+    overflow: hidden;
+    z-index: 2;
+  }
+
+  .sold-ribbon span {
+    display: block;
+    position: absolute;
+    top: 14px;
+    left: -18px;
+    width: 100px;
+    padding: 4px 0;
+    background: var(--color-sold);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  .reserved-ribbon span {
+    background: var(--color-reserved);
+    font-size: 0.5625rem;
+  }
+
+  /* Card body */
+  .card-v2-body {
     flex: 1;
-    padding: 0.75rem 1rem;
-    min-width: 0;
+    padding: 0.75rem 0.875rem;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
   }
 
-  .item-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
-  .item-title {
+  .card-v2-title {
     margin: 0;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.4;
     color: var(--color-text);
     display: -webkit-box;
@@ -481,20 +641,68 @@ const sortOptions = [
     overflow: hidden;
   }
 
-  .item-price {
+  .card-v2-desc {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--color-text);
-    margin-top: auto;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  .item-status {
+  .card-v2-price {
+    margin: 0.25rem 0 0;
+    font-size: 1.0625rem;
+    font-weight: 800;
+    color: var(--color-text);
+  }
+
+  .card-v2-footer {
     display: flex;
-    align-items: flex-end;
-    padding: 0.75rem 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-border-light);
+  }
+
+  .card-v2-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .card-tag-mini {
+    font-size: 0.5625rem;
+    padding: 0.0625rem 0.375rem;
+    background: var(--color-bg);
+    border-radius: calc(var(--radius) / 2);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    border: 1px solid var(--color-border-light);
+  }
+
+  .status-badge-mini {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    font-size: 0.5625rem;
+    padding: 0.125rem 0.375rem;
     flex-shrink: 0;
   }
+
+  .status-badge-mini.status-active { background: #dcfce7; color: #16a34a; }
+  .status-badge-mini.status-reserved { background: #fef9c3; color: #a16207; }
+  .status-badge-mini.status-sold { background: #fee2e2; color: #dc2626; }
+  .status-badge-mini.status-draft { background: #e0e0e0; color: #616161; }
+  .status-badge-mini.status-hidden { background: #e0e0e0; color: #616161; }
 
   /* Tag filter buttons */
   .tag-btn {
@@ -523,26 +731,10 @@ const sortOptions = [
     color: #fff;
   }
 
-  /* Status badge for cards */
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
-    white-space: nowrap;
-    font-size: 0.625rem;
-    padding: 0.1875rem 0.5rem;
-  }
-  .status-active { background: var(--color-primary); color: #fff; }
-  .status-reserved { background: var(--color-reserved); color: #fff; }
-  .status-sold { background: var(--color-sold); color: #fff; }
-  .status-draft { background: #e0e0e0; color: #616161; }
-  .status-hidden { background: #e0e0e0; color: #616161; }
-
   @media (max-width: 640px) {
-    .item-image { width: 90px; }
-    .item-body { padding: 0.5rem 0.75rem; }
-    .item-title { font-size: 0.8125rem; }
-    .item-price { font-size: 0.875rem; }
+    .card-v2-body { padding: 0.5rem 0.625rem; }
+    .card-v2-title { font-size: 0.8125rem; }
+    .card-v2-price { font-size: 0.9375rem; }
+    .card-v2-desc { -webkit-line-clamp: 1; }
   }
 </style>

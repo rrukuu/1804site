@@ -73,6 +73,20 @@ const statusLabel = getStatusLabel(publicData.status);
         </p>
       </div>
 
+      <!-- Markdown body (商品の説明) -->
+      <div class="section-card">
+        <h2 class="section-heading">商品の説明</h2>
+        <div class="prose">
+          <Content />
+        </div>
+      </div>
+
+      <!-- Description (アカウントのポイント) -->
+      <div class="section-card">
+        <h2 class="section-heading">このアカウントのポイント</h2>
+        <p class="detail-desc">{publicData.description}</p>
+      </div>
+
       <!-- Account info section -->
       <div class="section-card">
         <h2 class="section-heading">このアカウントの情報</h2>
@@ -96,20 +110,6 @@ const statusLabel = getStatusLabel(publicData.status);
             <td>{publicData.updatedAt.toLocaleDateString('ja-JP')}</td>
           </tr>
         </table>
-      </div>
-
-      <!-- Description section -->
-      <div class="section-card">
-        <h2 class="section-heading">このアカウントのポイント</h2>
-        <p class="detail-desc">{publicData.description}</p>
-      </div>
-
-      <!-- Markdown body -->
-      <div class="section-card">
-        <h2 class="section-heading">詳細説明</h2>
-        <div class="prose">
-          <Content />
-        </div>
       </div>
     </article>
   </div>
