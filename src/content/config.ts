@@ -29,6 +29,9 @@ const productsCollection = defineCollection({
     // オーブ関連（オーブアカウント用）
     orbCount: z.number().min(0).optional(),
 
+    // 割引率（0-100%）
+    discount: z.number().min(0).max(100).optional(),
+
     // 購入導線
     purchaseUrl: z.string().url().optional(),
 

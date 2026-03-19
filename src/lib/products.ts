@@ -7,9 +7,9 @@ export type Product = CollectionEntry<'products'>;
 export interface ProductQuery {
   category?: ProductCategory;
   tag?: string;
-  orbMin?: number;
-  orbMax?: number;
-  sort?: 'newest' | 'price-high' | 'price-low' | 'orb-high' | 'orb-low';
+  priceMin?: number;
+  priceMax?: number;
+  sort?: 'newest' | 'price-high' | 'price-low';
 }
 
 /**
@@ -29,13 +29,58 @@ const STATUS_PRIORITY: Record<ProductStatus, number> = {
 };
 
 export const PRODUCT_CATEGORIES: { key: ProductCategory; label: string }[] = [
-  { key: 'orb-account', label: 'アカウント販売（オーブアカウント）' },
+  { key: 'orb-account', label: 'オーブアカウント販売' },
   { key: 'boosting', label: '代行' },
-  { key: 'strong-account', label: '強垢販売' },
+  { key: 'strong-account', label: 'その他アカウント販売' },
 ];
 
 export function getCategoryLabel(category: ProductCategory): string {
   return PRODUCT_CATEGORIES.find((item) => item.key === category)?.label ?? category;
+}
+
+/**
+ * カテゴリ別CTAラベル
+ */
+export function getCTALabel(category: ProductCategory): string {
+  if (category === 'boosting') return '依頼はこちらから';
+  return '購入はこちらから';
+}
+
+/**
+ * カテゴリ別セクション名
+ */
+export function getSectionLabels(category: ProductCategory): {
+  description: string;
+  points: string;
+  info: string;
+} {
+  if (category === 'boosting') {
+    return {
+      description: '代行内容の説明',
+      points: '用意していただくもの',
+      info: 'サービス情報',
+    };
+  }
+  return {
+    description: '商品の説明',
+    points: 'このアカウントのポイント',
+    info: 'このアカウントの情報',
+  };
+}
+
+/**
+ * 割引後価格を計算
+ */
+export function getDiscountedPrice(price: number, discount?: number): number {
+  if (!discount || discount <= 0) return price;
+  return Math.floor(price * (1 - discount / 100));
+}
+
+/**
+ * アカウント販売かどうか（オーブアカウント or その他アカウント）
+ */
+export function isAccountCategory(category: ProductCategory): boolean {
+  return category === 'orb-account' || category === 'strong-account';
 }
 
 function sortProducts(products: Product[], sort: ProductQuery['sort'] = 'newest'): Product[] {
@@ -45,8 +90,6 @@ function sortProducts(products: Product[], sort: ProductQuery['sort'] = 'newest'
 
     if (sort === 'price-high') return b.data.price - a.data.price;
     if (sort === 'price-low') return a.data.price - b.data.price;
-    if (sort === 'orb-high') return (b.data.orbCount ?? 0) - (a.data.orbCount ?? 0);
-    if (sort === 'orb-low') return (a.data.orbCount ?? 0) - (b.data.orbCount ?? 0);
 
     return b.data.updatedAt.getTime() - a.data.updatedAt.getTime();
   });
@@ -63,8 +106,9 @@ export async function getFilteredProducts(query: ProductQuery = {}): Promise<Pro
   const filtered = visibleProducts.filter((product) => {
     if (query.category && product.data.category !== query.category) return false;
     if (query.tag && !product.data.tags.includes(query.tag)) return false;
-    if (typeof query.orbMin === 'number' && (product.data.orbCount ?? 0) < query.orbMin) return false;
-    if (typeof query.orbMax === 'number' && (product.data.orbCount ?? 0) > query.orbMax) return false;
+    const effectivePrice = getDiscountedPrice(product.data.price, product.data.discount);
+    if (typeof query.priceMin === 'number' && effectivePrice < query.priceMin) return false;
+    if (typeof query.priceMax === 'number' && effectivePrice > query.priceMax) return false;
     return true;
   });
 

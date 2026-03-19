@@ -58,7 +58,7 @@ collections:
       - title
       - status
 
-    summary: "{{title}} - ¥{{price}} [{{status}}]"
+    summary: "{{title}} - ¥{{price}} [{{status}}] {{category}}"
 
     fields:
       - name: id
@@ -85,6 +85,16 @@ collections:
         widget: number
         value_type: int
         min: 0
+        required: true
+
+      - name: category
+        label: カテゴリ
+        widget: select
+        options:
+          - { label: "🔮 オーブアカウント販売", value: "orb-account" }
+          - { label: "⚡ 代行", value: "boosting" }
+          - { label: "💪 その他アカウント販売", value: "strong-account" }
+        default: orb-account
         required: true
 
       - name: status
@@ -125,6 +135,24 @@ collections:
         widget: list
         required: false
         hint: "カテゴリ・ブランド名など"
+
+      - name: orbCount
+        label: オーブ数
+        widget: number
+        value_type: int
+        min: 0
+        required: false
+        hint: "オーブアカウント販売の場合に入力"
+
+      - name: discount
+        label: 割引率（%）
+        widget: number
+        value_type: int
+        min: 0
+        max: 100
+        required: false
+        default: 0
+        hint: "0-100の整数。例: 20 = 20%OFF。0または未入力は割引なし"
 
       - name: purchaseUrl
         label: 購入ページURL

@@ -1,7 +1,18 @@
 ---
 // src/pages/products/[slug].astro
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getVisibleProducts, getProductBySlug, shouldShowPurchaseUrl, sanitizeForPublic, getCategoryLabel, getStatusLabel } from '../../lib/products';
+import {
+  getVisibleProducts,
+  getProductBySlug,
+  shouldShowPurchaseUrl,
+  sanitizeForPublic,
+  getCategoryLabel,
+  getStatusLabel,
+  getCTALabel,
+  getSectionLabels,
+  getDiscountedPrice,
+  isAccountCategory,
+} from '../../lib/products';
 
 export async function getStaticPaths() {
   const products = await getVisibleProducts();
@@ -20,6 +31,13 @@ if (!product) {
 const publicData = sanitizeForPublic(product);
 const { Content } = await product.render();
 const statusLabel = getStatusLabel(publicData.status);
+const ctaLabel = getCTALabel(publicData.category);
+const sectionLabels = getSectionLabels(publicData.category);
+const showAccountFaq = isAccountCategory(publicData.category);
+
+const discount = publicData.discount ?? 0;
+const hasDiscount = discount > 0;
+const discountedPrice = getDiscountedPrice(publicData.price, discount);
 ---
 
 <BaseLayout title={publicData.title} description={publicData.description}>
@@ -67,29 +85,52 @@ const statusLabel = getStatusLabel(publicData.status);
             ))}
           </div>
         )}
-        <p class="detail-price">
-          <span class="price-yen">¥{publicData.price.toLocaleString()}</span>
-          <span class="price-label">円(税込)</span>
-        </p>
+        <div class="detail-price">
+          {hasDiscount ? (
+            <div class="price-discount-block">
+              <span class="discount-badge-detail">{discount}%OFF</span>
+              <span class="price-yen-original">¥{publicData.price.toLocaleString()}</span>
+              <span class="price-yen">¥{discountedPrice.toLocaleString()}</span>
+              <span class="price-label">円(税込)</span>
+            </div>
+          ) : (
+            <p class="price-line">
+              <span class="price-yen">¥{publicData.price.toLocaleString()}</span>
+              <span class="price-label">円(税込)</span>
+            </p>
+          )}
+        </div>
       </div>
 
-      <!-- Markdown body (商品の説明) -->
+      <!-- Large CTA button -->
+      {shouldShowPurchaseUrl(publicData.status) && publicData.purchaseUrl && (
+        <a
+          href={publicData.purchaseUrl}
+          class="cta-button"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {ctaLabel}
+        </a>
+      )}
+
+      <!-- Markdown body (商品の説明 / 代行内容の説明) -->
       <div class="section-card">
-        <h2 class="section-heading">商品の説明</h2>
+        <h2 class="section-heading">{sectionLabels.description}</h2>
         <div class="prose">
           <Content />
         </div>
       </div>
 
-      <!-- Description (アカウントのポイント) -->
+      <!-- Description (アカウントのポイント / 用意していただくもの) -->
       <div class="section-card">
-        <h2 class="section-heading">このアカウントのポイント</h2>
+        <h2 class="section-heading">{sectionLabels.points}</h2>
         <p class="detail-desc">{publicData.description}</p>
       </div>
 
       <!-- Account info section -->
       <div class="section-card">
-        <h2 class="section-heading">このアカウントの情報</h2>
+        <h2 class="section-heading">{sectionLabels.info}</h2>
         <table class="info-table">
           <tr>
             <td>カテゴリ</td>
@@ -111,6 +152,58 @@ const statusLabel = getStatusLabel(publicData.status);
           </tr>
         </table>
       </div>
+
+      <!-- Accordion FAQ (アカウント販売のみ) -->
+      {showAccountFaq && (
+        <div class="section-card">
+          <h2 class="section-heading">取引の流れ・よくある質問</h2>
+
+          <details class="accordion-item">
+            <summary class="accordion-trigger">
+              <span>取引の流れ</span>
+              <svg class="accordion-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="accordion-content">
+              <ol>
+                <li>ご希望の商品を選んで「購入はこちらから」ボタンからDMをお送りください</li>
+                <li>お支払い方法や受け渡し日時を調整します</li>
+                <li>お支払い確認後、引き継ぎ情報をお渡しします</li>
+                <li>引き継ぎ完了を確認して取引完了です</li>
+              </ol>
+            </div>
+          </details>
+
+          <details class="accordion-item">
+            <summary class="accordion-trigger">
+              <span>支払い方法は何がありますか？</span>
+              <svg class="accordion-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="accordion-content">
+              <p>DMにてご相談ください。柔軟に対応いたします。</p>
+            </div>
+          </details>
+
+          <details class="accordion-item">
+            <summary class="accordion-trigger">
+              <span>引き継ぎ後にトラブルが起きた場合は？</span>
+              <svg class="accordion-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="accordion-content">
+              <p>引き継ぎ完了後も一定期間サポートいたします。お気軽にDMでご連絡ください。</p>
+            </div>
+          </details>
+
+          <details class="accordion-item">
+            <summary class="accordion-trigger">
+              <span>値下げ交渉はできますか？</span>
+              <svg class="accordion-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="accordion-content">
+              <p>商品によっては相談可能な場合がございます。DMにてお気軽にご相談ください。</p>
+            </div>
+          </details>
+        </div>
+      )}
     </article>
   </div>
 
@@ -118,8 +211,15 @@ const statusLabel = getStatusLabel(publicData.status);
   <div class="sticky-bottom">
     <div class="sticky-inner">
       <div class="sticky-price-area">
-        <span class="sticky-status status-badge status-{publicData.status}">{statusLabel}</span>
-        <span class="sticky-price">¥{publicData.price.toLocaleString()}</span>
+        <span class={`sticky-status status-badge status-${publicData.status}`}>{statusLabel}</span>
+        {hasDiscount ? (
+          <div class="sticky-price-discount">
+            <span class="sticky-price-was">¥{publicData.price.toLocaleString()}</span>
+            <span class="sticky-price">¥{discountedPrice.toLocaleString()}</span>
+          </div>
+        ) : (
+          <span class="sticky-price">¥{publicData.price.toLocaleString()}</span>
+        )}
       </div>
       {shouldShowPurchaseUrl(publicData.status) && publicData.purchaseUrl ? (
         <a
@@ -128,7 +228,7 @@ const statusLabel = getStatusLabel(publicData.status);
           target="_blank"
           rel="noopener noreferrer"
         >
-          DMで相談
+          {ctaLabel}
         </a>
       ) : publicData.status === 'reserved' ? (
         <span class="btn btn-disabled sticky-btn">取り置き中</span>
@@ -244,6 +344,10 @@ const statusLabel = getStatusLabel(publicData.status);
     margin: 0;
   }
 
+  .price-line {
+    margin: 0;
+  }
+
   .price-yen {
     font-size: 1.75rem;
     font-weight: 800;
@@ -255,6 +359,59 @@ const statusLabel = getStatusLabel(publicData.status);
     font-size: 0.875rem;
     color: var(--color-text-muted);
     font-weight: 500;
+  }
+
+  .price-discount-block {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .discount-badge-detail {
+    display: inline-block;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-sm);
+    align-self: center;
+  }
+
+  .price-yen-original {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+  }
+
+  /* Large CTA button */
+  .cta-button {
+    display: block;
+    width: 100%;
+    padding: 1.125rem 2rem;
+    font-size: 1.125rem;
+    font-weight: 800;
+    text-align: center;
+    background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    transition: all var(--transition-base);
+    letter-spacing: 0.02em;
+  }
+
+  .cta-button:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+  }
+
+  .cta-button:active {
+    transform: translateY(0);
   }
 
   /* Section cards */
@@ -284,6 +441,81 @@ const statusLabel = getStatusLabel(publicData.status);
   .prose :global(p) { margin: 0 0 0.75rem; }
   .prose :global(ul), .prose :global(ol) { margin: 0 0 0.75rem; padding-left: 1.25rem; }
   .prose :global(li) { margin: 0.25rem 0; }
+
+  /* Accordion */
+  .accordion-item {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .accordion-item:first-of-type {
+    border-top: none;
+  }
+
+  .accordion-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text);
+    cursor: pointer;
+    list-style: none;
+    transition: color var(--transition-fast);
+  }
+
+  .accordion-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .accordion-trigger:hover {
+    color: var(--color-primary);
+  }
+
+  .accordion-chevron {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    transition: transform 0.3s ease;
+  }
+
+  .accordion-item[open] .accordion-chevron {
+    transform: rotate(180deg);
+  }
+
+  .accordion-content {
+    padding: 0 0 1rem;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.8;
+    animation: accordionSlideDown 0.3s ease;
+  }
+
+  @keyframes accordionSlideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      max-height: 500px;
+      transform: translateY(0);
+    }
+  }
+
+  .accordion-content ol {
+    padding-left: 1.25rem;
+    margin: 0;
+  }
+
+  .accordion-content ol li {
+    margin: 0.375rem 0;
+  }
+
+  .accordion-content p {
+    margin: 0;
+  }
 
   /* Sticky bottom CTA */
   .sticky-bottom {
@@ -324,6 +556,19 @@ const statusLabel = getStatusLabel(publicData.status);
     font-weight: 800;
     color: var(--color-text);
     letter-spacing: -0.01em;
+  }
+
+  .sticky-price-discount {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .sticky-price-was {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: line-through;
   }
 
   .sticky-btn {

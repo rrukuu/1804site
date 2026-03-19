@@ -6,27 +6,43 @@ import {
   getTagsByCategory,
   getCategoryLabel,
   getStatusLabel,
+  getDiscountedPrice,
   type Product,
 } from '../lib/products';
 
 const allProducts = await getVisibleProducts();
 
-const productsJson = allProducts.map((p, i) => ({
-  slug: p.slug,
-  title: p.data.title,
-  price: p.data.price,
-  status: p.data.status,
-  statusLabel: getStatusLabel(p.data.status),
-  category: p.data.category,
-  categoryLabel: getCategoryLabel(p.data.category),
-  description: p.data.description,
-  tags: p.data.tags,
-  orbCount: p.data.orbCount ?? null,
-  coverImage: p.data.coverImage,
-  priority: p.data.priority,
-  updatedAt: p.data.updatedAt.getTime(),
-  no: i + 1,
-}));
+// Category-based auto-numbering
+const categoryCounters: Record<string, number> = {};
+const productsJson = allProducts.map((p) => {
+  const cat = p.data.category;
+  if (!categoryCounters[cat]) categoryCounters[cat] = 0;
+  categoryCounters[cat]++;
+  const catNo = categoryCounters[cat];
+
+  const discount = p.data.discount ?? 0;
+  const originalPrice = p.data.price;
+  const discountedPrice = getDiscountedPrice(originalPrice, discount);
+
+  return {
+    slug: p.slug,
+    title: p.data.title,
+    price: originalPrice,
+    discount,
+    discountedPrice,
+    status: p.data.status,
+    statusLabel: getStatusLabel(p.data.status),
+    category: p.data.category,
+    categoryLabel: getCategoryLabel(p.data.category),
+    description: p.data.description,
+    tags: p.data.tags,
+    orbCount: p.data.orbCount ?? null,
+    coverImage: p.data.coverImage,
+    priority: p.data.priority,
+    updatedAt: p.data.updatedAt.getTime(),
+    catNo,
+  };
+});
 
 const categoriesJson = PRODUCT_CATEGORIES;
 
@@ -34,15 +50,18 @@ const sortOptions = [
   { value: 'newest', label: '新着順' },
   { value: 'price-high', label: '価格が高い順' },
   { value: 'price-low', label: '価格が安い順' },
-  { value: 'orb-high', label: 'オーブが多い順' },
-  { value: 'orb-low', label: 'オーブが少ない順' },
 ];
 
-const categoryIcons = {
-  '': '📋',
+const categoryIcons: Record<string, string> = {
   'orb-account': '🔮',
   'boosting': '⚡',
   'strong-account': '💪',
+};
+
+const categoryPrefixes: Record<string, string> = {
+  'orb-account': 'OA',
+  'boosting': 'BT',
+  'strong-account': 'SA',
 };
 ---
 
@@ -50,18 +69,17 @@ const categoryIcons = {
   <div class="container">
     <!-- Hero banner -->
     <section class="hero-banner">
-      <h1>モンスト販売マーケット</h1>
-      <p>アカウント販売・代行・強垢販売をカテゴリごとに絞り込みできます</p>
+      <h1>1804公式サイト</h1>
+      <p>オーブアカウント販売・代行・その他アカウント販売</p>
     </section>
 
-    <!-- Category cards -->
+    <!-- Category cards (3 categories only, no "すべて") -->
     <section class="category-nav" id="category-pills">
-      <button class="cat-card active" data-category="">
-        <span class="cat-icon">📋</span>
-        <span class="cat-label">すべて</span>
-      </button>
       {categoriesJson.map((cat) => (
-        <button class="cat-card" data-category={cat.key}>
+        <button
+          class={`cat-card ${cat.key === 'orb-account' ? 'active' : ''}`}
+          data-category={cat.key}
+        >
           <span class="cat-icon">{categoryIcons[cat.key] || '📦'}</span>
           <span class="cat-label">{cat.label}</span>
         </button>
@@ -85,16 +103,16 @@ const categoryIcons = {
       </div>
     </section>
 
-    <!-- Filter bar -->
+    <!-- Filter bar (price) -->
     <section class="filter-card">
       <div class="filter-row">
         <div class="filter-group">
-          <label for="orb-min">オーブ下限</label>
-          <input type="number" id="orb-min" min="0" placeholder="0" />
+          <label for="price-min">価格下限</label>
+          <input type="number" id="price-min" min="0" placeholder="0" />
         </div>
         <div class="filter-group">
-          <label for="orb-max">オーブ上限</label>
-          <input type="number" id="orb-max" min="0" placeholder="∞" />
+          <label for="price-max">価格上限</label>
+          <input type="number" id="price-max" min="0" placeholder="∞" />
         </div>
         <button class="btn btn-primary filter-submit" id="filter-btn">絞り込む</button>
       </div>
@@ -103,7 +121,7 @@ const categoryIcons = {
 
     <!-- Section heading -->
     <div class="list-heading">
-      <h2 class="section-heading" id="section-title">在庫一覧</h2>
+      <h2 class="section-heading" id="section-title">オーブアカウント販売</h2>
       <span class="count-badge" id="product-count"></span>
     </div>
 
@@ -112,38 +130,38 @@ const categoryIcons = {
   </div>
 </BaseLayout>
 
-<script define:vars={{ productsJson, categoriesJson }}>
-  const STATE = { category: '', tag: '', sort: 'newest', orbMin: '', orbMax: '' };
+<script define:vars={{ productsJson, categoriesJson, categoryPrefixes }}>
+  const STATE = { category: 'orb-account', tag: '', sort: 'newest', priceMin: '', priceMax: '' };
   const STATUS_PRIORITY = { active: 0, reserved: 1, sold: 2, draft: 3, hidden: 4 };
-  const CATEGORY_LABELS = { '': '在庫一覧' };
+  const CATEGORY_LABELS = {};
   categoriesJson.forEach((c) => { CATEGORY_LABELS[c.key] = c.label; });
 
   const categoryPills = document.getElementById('category-pills');
   const tagFilter = document.getElementById('tag-filter');
   const productsContainer = document.getElementById('products-container');
   const sortButtons = document.getElementById('sort-buttons');
-  const orbMinInput = document.getElementById('orb-min');
-  const orbMaxInput = document.getElementById('orb-max');
+  const priceMinInput = document.getElementById('price-min');
+  const priceMaxInput = document.getElementById('price-max');
   const filterBtn = document.getElementById('filter-btn');
   const sectionTitle = document.getElementById('section-title');
   const productCount = document.getElementById('product-count');
 
   function readUrl() {
     const p = new URLSearchParams(window.location.search);
-    STATE.category = p.get('category') || '';
+    STATE.category = p.get('category') || 'orb-account';
     STATE.tag = p.get('tag') || '';
     STATE.sort = p.get('sort') || 'newest';
-    STATE.orbMin = p.get('orbMin') || '';
-    STATE.orbMax = p.get('orbMax') || '';
+    STATE.priceMin = p.get('priceMin') || '';
+    STATE.priceMax = p.get('priceMax') || '';
   }
 
   function writeUrl() {
     const p = new URLSearchParams();
-    if (STATE.category) p.set('category', STATE.category);
+    if (STATE.category && STATE.category !== 'orb-account') p.set('category', STATE.category);
     if (STATE.tag) p.set('tag', STATE.tag);
     if (STATE.sort && STATE.sort !== 'newest') p.set('sort', STATE.sort);
-    if (STATE.orbMin) p.set('orbMin', STATE.orbMin);
-    if (STATE.orbMax) p.set('orbMax', STATE.orbMax);
+    if (STATE.priceMin) p.set('priceMin', STATE.priceMin);
+    if (STATE.priceMax) p.set('priceMax', STATE.priceMax);
     const qs = p.toString();
     window.history.replaceState(null, '', qs ? `/?${qs}` : '/');
   }
@@ -155,29 +173,28 @@ const categoryIcons = {
     sortButtons.querySelectorAll('.sort-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.sort === STATE.sort);
     });
-    orbMinInput.value = STATE.orbMin;
-    orbMaxInput.value = STATE.orbMax;
-    sectionTitle.textContent = CATEGORY_LABELS[STATE.category] || '在庫一覧';
+    priceMinInput.value = STATE.priceMin;
+    priceMaxInput.value = STATE.priceMax;
+    sectionTitle.textContent = CATEGORY_LABELS[STATE.category] || '商品一覧';
   }
 
   function filterSort() {
     let list = productsJson.filter((p) => {
       if (STATE.category && p.category !== STATE.category) return false;
       if (STATE.tag && !p.tags.includes(STATE.tag)) return false;
-      const oMin = STATE.orbMin ? Number(STATE.orbMin) : null;
-      const oMax = STATE.orbMax ? Number(STATE.orbMax) : null;
-      if (oMin !== null && (p.orbCount ?? 0) < oMin) return false;
-      if (oMax !== null && (p.orbCount ?? 0) > oMax) return false;
+      const effectivePrice = p.discountedPrice;
+      const pMin = STATE.priceMin ? Number(STATE.priceMin) : null;
+      const pMax = STATE.priceMax ? Number(STATE.priceMax) : null;
+      if (pMin !== null && effectivePrice < pMin) return false;
+      if (pMax !== null && effectivePrice > pMax) return false;
       return true;
     });
     list.sort((a, b) => {
       const sd = (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9);
       if (sd !== 0) return sd;
       switch (STATE.sort) {
-        case 'price-high': return b.price - a.price;
-        case 'price-low': return a.price - b.price;
-        case 'orb-high': return (b.orbCount ?? 0) - (a.orbCount ?? 0);
-        case 'orb-low': return (a.orbCount ?? 0) - (b.orbCount ?? 0);
+        case 'price-high': return b.discountedPrice - a.discountedPrice;
+        case 'price-low': return a.discountedPrice - b.discountedPrice;
         default: return b.updatedAt - a.updatedAt;
       }
     });
@@ -206,7 +223,16 @@ const categoryIcons = {
         ? `<div class="sold-ribbon reserved-ribbon"><span>予約済</span></div>`
         : '';
 
-    // Truncate description to ~80 chars
+    // Discount display
+    const hasDiscount = p.discount > 0;
+    const prefix = categoryPrefixes[p.category] || 'NO';
+    const discountBadge = hasDiscount
+      ? `<span class="discount-ribbon">${p.discount}%OFF</span>`
+      : '';
+    const priceHtml = hasDiscount
+      ? `<span class="price-original">${p.price.toLocaleString()}円</span> <span class="price-discounted">${p.discountedPrice.toLocaleString()}円</span>${orbText}`
+      : `${p.discountedPrice.toLocaleString()}円${orbText}`;
+
     const descTrunc = p.description.length > 80
       ? p.description.substring(0, 80) + '…'
       : p.description;
@@ -215,11 +241,12 @@ const categoryIcons = {
       <div class="card-v2-image">
         <img src="${esc(p.coverImage)}" alt="${esc(p.title)}" loading="lazy" />
         ${soldBadge}
+        ${discountBadge}
       </div>
       <div class="card-v2-body">
-        <h3 class="card-v2-title">【No.${p.no}】${esc(p.title)}</h3>
+        <h3 class="card-v2-title">【${prefix}-${p.catNo}】${esc(p.title)}</h3>
         <p class="card-v2-desc">${esc(descTrunc)}</p>
-        <p class="card-v2-price">${p.price.toLocaleString()}円${orbText}</p>
+        <p class="card-v2-price">${priceHtml}</p>
         <div class="card-v2-footer">
           <div class="card-v2-tags">${tagsHtml}</div>
           <span class="status-badge-mini status-${p.status}">${esc(p.statusLabel)}</span>
@@ -273,7 +300,7 @@ const categoryIcons = {
     render();
   });
 
-  filterBtn.addEventListener('click', () => { STATE.orbMin = orbMinInput.value; STATE.orbMax = orbMaxInput.value; render(); });
+  filterBtn.addEventListener('click', () => { STATE.priceMin = priceMinInput.value; STATE.priceMax = priceMaxInput.value; render(); });
   window.addEventListener('popstate', () => { readUrl(); render(); });
 
   readUrl();
@@ -304,12 +331,10 @@ const categoryIcons = {
     color: var(--color-text-muted);
   }
 
-  /* ==================== */
-  /* Category card nav     */
-  /* ==================== */
+  /* Category card nav (3 columns) */
   .category-nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.625rem;
     margin-bottom: 1rem;
   }
@@ -359,13 +384,14 @@ const categoryIcons = {
 
   @media (max-width: 480px) {
     .category-nav {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .cat-label {
+      font-size: 0.5625rem;
     }
   }
 
-  /* ==================== */
-  /* Sort bar (separated) */
-  /* ==================== */
+  /* Sort bar */
   .sort-bar {
     background: var(--color-bg-card);
     border: 1px solid var(--color-border);
@@ -453,7 +479,6 @@ const categoryIcons = {
     color: var(--color-text-muted);
   }
 
-  .filter-group select,
   .filter-group input {
     padding: 0.4375rem 0.625rem;
     border: 1px solid var(--color-border);
@@ -464,7 +489,6 @@ const categoryIcons = {
     font-size: 0.8125rem;
   }
 
-  .filter-group select:focus,
   .filter-group input:focus {
     outline: none;
     border-color: var(--color-primary);
@@ -525,9 +549,7 @@ const categoryIcons = {
 </style>
 
 <style is:global>
-  /* ======================== */
-  /* Product grid v2 (cards)  */
-  /* ======================== */
+  /* Product grid v2 */
   .product-grid-v2 {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -559,15 +581,10 @@ const categoryIcons = {
     text-decoration: none;
   }
 
-  .product-card-v2.is-sold {
-    opacity: 0.75;
-  }
+  .product-card-v2.is-sold { opacity: 0.75; }
+  .product-card-v2.is-sold:hover { opacity: 0.9; }
 
-  .product-card-v2.is-sold:hover {
-    opacity: 0.9;
-  }
-
-  /* Card image with fixed aspect ratio */
+  /* Card image */
   .card-v2-image {
     position: relative;
     aspect-ratio: 16 / 10;
@@ -586,7 +603,7 @@ const categoryIcons = {
     transform: scale(1.05);
   }
 
-  /* SOLD ribbon (top-left triangle) */
+  /* SOLD ribbon */
   .sold-ribbon {
     position: absolute;
     top: 0;
@@ -618,6 +635,21 @@ const categoryIcons = {
   .reserved-ribbon span {
     background: var(--color-reserved);
     font-size: 0.5625rem;
+  }
+
+  /* Discount ribbon */
+  .discount-ribbon {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
 
   /* Card body */
@@ -657,6 +689,19 @@ const categoryIcons = {
     font-size: 1.0625rem;
     font-weight: 800;
     color: var(--color-text);
+  }
+
+  .price-original {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+  }
+
+  .price-discounted {
+    color: #e53935;
+    font-size: 1.0625rem;
+    font-weight: 800;
   }
 
   .card-v2-footer {
@@ -736,5 +781,6 @@ const categoryIcons = {
     .card-v2-title { font-size: 0.8125rem; }
     .card-v2-price { font-size: 0.9375rem; }
     .card-v2-desc { -webkit-line-clamp: 1; }
+    .price-discounted { font-size: 0.9375rem; }
   }
 </style>
